@@ -61,7 +61,7 @@ namespace Intro_Skip
             if (songIsPaused == true)
                 _songAudio.UnPause();
             promptPlayer = false;
-
+            isLevel = false;
 
 
             if (!_mainGameSceneSetupData)
@@ -340,7 +340,7 @@ namespace Intro_Skip
             VRPlatformHelper vr = VRPlatformHelper.instance;
             YieldInstruction waitForIntervalTime = new WaitForSeconds(intervalTime);
             float time = Time.time + 0.1f;
-            while(Time.time < time)
+            while(Time.time < time && isLevel == true)
             {
                 vr.TriggerHapticPulse(controller.node, impulseStrength);
                 yield return intervalTime > 0 ? waitForIntervalTime : null;
