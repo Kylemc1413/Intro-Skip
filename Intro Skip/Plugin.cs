@@ -28,7 +28,6 @@ namespace Intro_Skip
         public static bool allowedToSkip = false;
         public static float firstObjectTime = 0;
         public static float introSkipTime = 0;
-
         private static MainGameSceneSetupData _mainGameSceneSetupData = null;
         private static AudioSource _songAudio;
         GameObject promptObject;
@@ -45,7 +44,6 @@ namespace Intro_Skip
         string playerID;
         SoundPlayer simpleSound = new SoundPlayer(Properties.Resources.gnome);
         bool soundIsPlaying = false;
-        bool songIsPaused = false;
 
         public void OnApplicationStart()
         {
@@ -57,9 +55,18 @@ namespace Intro_Skip
         private void SceneManagerOnActiveSceneChanged(Scene arg0, Scene scene)
         {   //Handle quitting/restarting song mid special event
             if (soundIsPlaying == true)
+            {
                 simpleSound.Stop();
-            if (songIsPaused == true)
-                _songAudio.UnPause();
+                soundIsPlaying = false;
+            }
+            if (_songAudio != null)
+            {
+                SharedCoroutineStarter.instance.StopCoroutine(SpecialEvent());
+                soundIsPlaying = false;
+                _songAudio.pitch = 1f;
+                AudioTimeSync.forcedAudioSync = false;
+            }
+
             promptPlayer = false;
             isLevel = false;
 
@@ -79,7 +86,6 @@ namespace Intro_Skip
                 skipOption.GetValue = ModPrefs.GetBool("IntroSkip", "skipLongIntro", true, true);
                 skipOption.OnToggle += (skipLongIntro) => { ModPrefs.SetBool("IntroSkip", "skipLongIntro", skipLongIntro); Log("Changed Modprefs value"); };
 
-
             }
 
 
@@ -87,16 +93,22 @@ namespace Intro_Skip
         }
         private void SceneManager_sceneLoaded(Scene scene, LoadSceneMode arg1)
         {
-            skipLongIntro = ModPrefs.GetBool("IntroSkip", "skipLongIntro", false, true);
 
+                skipLongIntro = ModPrefs.GetBool("IntroSkip", "skipLongIntro", false, true);
             if (scene.name == "GameCore")
             {
                 skipIntro = false;
                 isLevel = true;
                 allowedToSkip = false;
                 if (_mainGameSceneSetupData.gameplayOptions.validForScoreUse)
+                {
                     if (skipLongIntro == true)
                         Init();
+                }
+                else
+                {
+                    isLevel = false;
+                }
 
                 SharedCoroutineStarter.instance.StartCoroutine(DelayedSetSkip()); ;
             }
@@ -139,6 +151,12 @@ namespace Intro_Skip
 
         public void OnUpdate()
         {
+            if (soundIsPlaying == true && _songAudio != null)
+            {
+                Log("Pausing");
+                    _songAudio.pitch = 0f;
+                    AudioTimeSync.forcedAudioSync = true;
+            }
 
             if (isLevel == true && skipLongIntro == true)
             {
@@ -192,8 +210,10 @@ namespace Intro_Skip
             {
                 _songAudio = AudioTimeSync.GetField<AudioSource>("_audioSource");
                 if (_songAudio != null)
+                { 
                     Log("Audio not null");
                 Log("Object Found");
+                }
             }
             else
                 Log("Object is null");
@@ -280,7 +300,7 @@ namespace Intro_Skip
 
             int chance = rnd.Next(1400, 1500);
             if (playerID == "76561198055583703")
-                chance = rnd.Next(1400, 1425);
+                chance = rnd.Next(1400, 1500);
             Log("Chance number is " + chance);
             if (specialEvent == true)
             {
@@ -321,21 +341,22 @@ namespace Intro_Skip
 
         private IEnumerator SpecialEvent()
         {
+
             yield return new WaitForSecondsRealtime(0.1f);
-            _songAudio.Pause();
-            songIsPaused = true;
+            _songAudio.pitch = 0f;
+            AudioTimeSync.forcedAudioSync = true;
             simpleSound.Load();
             simpleSound.Play();
             soundIsPlaying = true;
             Log("Waiting");
             yield return new WaitForSecondsRealtime(16f);
             soundIsPlaying = false;
-            _songAudio.UnPause();
-            songIsPaused = false;
+            _songAudio.pitch = 1f;
+            AudioTimeSync.forcedAudioSync = false;
             Log("Unpaused");
 
         }
-        public IEnumerator OneShotRumbleCoroutine(VRController controller, float duration, float impulseStrength, float intervalTime = 0f)
+            public IEnumerator OneShotRumbleCoroutine(VRController controller, float duration, float impulseStrength, float intervalTime = 0f)
         {
             VRPlatformHelper vr = VRPlatformHelper.instance;
             YieldInstruction waitForIntervalTime = new WaitForSeconds(intervalTime);
