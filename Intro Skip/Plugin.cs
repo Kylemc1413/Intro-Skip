@@ -1,4 +1,5 @@
 ﻿using IllusionPlugin;
+using IllusionInjector;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -17,7 +18,7 @@ namespace Intro_Skip
     public class Plugin : IPlugin
     {
         public string Name => "Intro Skip";
-        public string Version => "1.2.0";
+        public string Version => "1.4.1";
         private readonly string[] env = { "DefaultEnvironment", "BigMirrorEnvironment", "TriangleEnvironment", "NiceEnvironment" };
 
         public static bool skipIntro = false;
@@ -45,6 +46,7 @@ namespace Intro_Skip
         SoundPlayer simpleSound = new SoundPlayer(Properties.Resources.gnome);
         bool soundIsPlaying = false;
 
+        public static bool multiActive;
         public void OnApplicationStart()
         {
             SceneManager.activeSceneChanged += SceneManagerOnActiveSceneChanged;
@@ -102,8 +104,25 @@ namespace Intro_Skip
                 allowedToSkip = false;
                 if (_mainGameSceneSetupData.gameplayOptions.validForScoreUse)
                 {
-                    if (skipLongIntro == true)
-                        Init();
+                    if (PluginManager.Plugins.Any(x => x.Name == "Beat Saber Multiplayer"))
+                    {
+                        GameObject client = GameObject.Find("MultiplayerClient");
+                        if (client != null)
+                        {
+                            multiActive = true;
+                            Log("Found MultiplayerClient game object!");
+
+                        }
+                        else
+                        {
+                            multiActive = false;
+                            Log(" MultiplayerClient game object not found!");
+                        }
+                    }
+                    if(multiActive == false)
+                        if (skipLongIntro == true)
+                            Init();
+
                 }
                 else
                 {
@@ -151,35 +170,39 @@ namespace Intro_Skip
 
         public void OnUpdate()
         {
-            if (soundIsPlaying == true && _songAudio != null)
+            if (multiActive == false)
             {
-                Log("Pausing");
+                if (soundIsPlaying == true && _songAudio != null)
+                {
+                    Log("Pausing");
                     _songAudio.pitch = 0f;
                     AudioTimeSync.forcedAudioSync = true;
-            }
+                }
 
-            if (isLevel == true && skipLongIntro == true)
-            {
-
-                if (skipIntro == true && _songAudio.time < introSkipTime && hasSkipped == false && allowedToSkip == true)
+                if (isLevel == true && skipLongIntro == true)
                 {
-                    if (leftController.triggerValue >= .8 || rightController.triggerValue >= .8)
+
+                    if (skipIntro == true && _songAudio.time < introSkipTime && hasSkipped == false && allowedToSkip == true)
                     {
-                        Skip();
-                        DestroyPrompt();
-                        hasSkipped = true;
-                        Log("Attempting Haptics");
-                        SharedCoroutineStarter.instance.StartCoroutine(OneShotRumbleCoroutine(leftController, 0.2f, 1));
-                        SharedCoroutineStarter.instance.StartCoroutine(OneShotRumbleCoroutine(rightController, 0.2f, 1));
+                        if (leftController.triggerValue >= .8 || rightController.triggerValue >= .8)
+                        {
+                            Skip();
+                            DestroyPrompt();
+                            hasSkipped = true;
+                            Log("Attempting Haptics");
+                            SharedCoroutineStarter.instance.StartCoroutine(OneShotRumbleCoroutine(leftController, 0.2f, 1));
+                            SharedCoroutineStarter.instance.StartCoroutine(OneShotRumbleCoroutine(rightController, 0.2f, 1));
+                        }
+
+
                     }
-
-
-                }
-                if (_songAudio.time > introSkipTime && skipIntro == true)
-                {
-                    DestroyPrompt();
+                    if (_songAudio.time > introSkipTime && skipIntro == true)
+                    {
+                        DestroyPrompt();
+                    }
                 }
             }
+
 
         }
 
