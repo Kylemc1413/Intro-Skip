@@ -179,7 +179,7 @@ namespace Intro_Skip
                     AudioTimeSync.forcedAudioSync = true;
                 }
 
-                if (isLevel == true && skipLongIntro == true)
+                if (isLevel == true && skipLongIntro == true && _songAudio != null)
                 {
 
                     if (skipIntro == true && _songAudio.time < introSkipTime && hasSkipped == false && allowedToSkip == true)
