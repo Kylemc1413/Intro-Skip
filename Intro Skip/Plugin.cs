@@ -81,12 +81,9 @@ namespace Intro_Skip
             if (scene.name == "Menu")
             {
 
-                firstObjectTime = 1000000;
+                firstObjectTime = 0;
                 introSkipTime = 0;
 
-                var skipOption = GameOptionsUI.CreateToggleOption("Intro Skipping");
-                skipOption.GetValue = ModPrefs.GetBool("IntroSkip", "skipLongIntro", true, true);
-                skipOption.OnToggle += (skipLongIntro) => { ModPrefs.SetBool("IntroSkip", "skipLongIntro", skipLongIntro); Log("Changed Modprefs value"); };
 
             }
 
