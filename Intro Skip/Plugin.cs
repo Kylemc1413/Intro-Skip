@@ -29,7 +29,7 @@ namespace Intro_Skip
         public static bool allowedToSkip = false;
         public static float firstObjectTime = 0;
         public static float introSkipTime = 0;
-        private static MainGameSceneSetupData _mainGameSceneSetupData = null;
+        private static StandardLevelSceneSetupDataSO _mainGameSceneSetupData = null;
         private static AudioSource _songAudio;
         GameObject promptObject;
         TextMeshPro _skipPrompt;
@@ -46,12 +46,56 @@ namespace Intro_Skip
         SoundPlayer simpleSound = new SoundPlayer(Properties.Resources.gnome);
         bool soundIsPlaying = false;
 
-        public static bool multiActive;
+        public static bool multiActive = false;
         public void OnApplicationStart()
         {
             SceneManager.activeSceneChanged += SceneManagerOnActiveSceneChanged;
-            SceneManager.sceneLoaded += SceneManager_sceneLoaded;
             skipLongIntro = ModPrefs.GetBool("IntroSkip", "skipLongIntro", false, true);
+            SceneManager.sceneLoaded += SceneManager_sceneLoaded;
+        }
+
+        private void SceneManager_sceneLoaded(Scene scene, LoadSceneMode arg1)
+        {
+            skipLongIntro = ModPrefs.GetBool("IntroSkip", "skipLongIntro", false, true);
+            if (scene.name == "GameCore")
+            {
+                if (_mainGameSceneSetupData == null)
+                {
+                    _mainGameSceneSetupData = Resources.FindObjectsOfTypeAll<StandardLevelSceneSetupDataSO>().FirstOrDefault();
+                }
+                Log("Game scene");
+                skipIntro = false;
+                isLevel = true;
+                allowedToSkip = false;
+                if (_mainGameSceneSetupData != null)
+                {
+                    if (PluginManager.Plugins.Any(x => x.Name == "Beat Saber Multiplayer"))
+                    {
+                        GameObject client = GameObject.Find("MultiplayerClient");
+                        if (client != null)
+                        {
+                            multiActive = true;
+                            Log("Found MultiplayerClient game object!");
+
+                        }
+                        else
+                        {
+                            multiActive = false;
+                            Log(" MultiplayerClient game object not found!");
+                        }
+                    }
+                    if (multiActive == false)
+                        if (skipLongIntro == true)
+                            Init();
+
+                }
+            else
+            {
+                isLevel = false;
+            }
+
+                SharedCoroutineStarter.instance.StartCoroutine(DelayedSetSkip()); ;
+            }
         }
 
         private void SceneManagerOnActiveSceneChanged(Scene arg0, Scene scene)
@@ -73,87 +117,25 @@ namespace Intro_Skip
             isLevel = false;
 
 
-            if (!_mainGameSceneSetupData)
-            {
-                _mainGameSceneSetupData = Resources.FindObjectsOfTypeAll<MainGameSceneSetupData>().FirstOrDefault();
-            }
-
             if (scene.name == "Menu")
             {
 
-                firstObjectTime = 0;
+                firstObjectTime = 1000000;
                 introSkipTime = 0;
 
 
             }
 
-
-
         }
-        private void SceneManager_sceneLoaded(Scene scene, LoadSceneMode arg1)
-        {
 
-                skipLongIntro = ModPrefs.GetBool("IntroSkip", "skipLongIntro", false, true);
-            if (scene.name == "GameCore")
-            {
-                skipIntro = false;
-                isLevel = true;
-                allowedToSkip = false;
-                if (_mainGameSceneSetupData.gameplayOptions.validForScoreUse)
-                {
-                    if (PluginManager.Plugins.Any(x => x.Name == "Beat Saber Multiplayer"))
-                    {
-                        GameObject client = GameObject.Find("MultiplayerClient");
-                        if (client != null)
-                        {
-                            multiActive = true;
-                            Log("Found MultiplayerClient game object!");
 
-                        }
-                        else
-                        {
-                            multiActive = false;
-                            Log(" MultiplayerClient game object not found!");
-                        }
-                    }
-                    if(multiActive == false)
-                        if (skipLongIntro == true)
-                            Init();
 
-                }
-                else
-                {
-                    isLevel = false;
-                }
-
-                SharedCoroutineStarter.instance.StartCoroutine(DelayedSetSkip()); ;
-            }
-            else
-            {
-                hasSkipped = false;
-                isLevel = false;
-
-                var controllers = Resources.FindObjectsOfTypeAll<VRController>();
-                foreach (VRController controller in controllers)
-                {
-                    //        Log(controller.ToString());
-                    if (controller.ToString() == "ControllerLeft (VRController)")
-                        leftController = controller;
-                    if (controller.ToString() == "ControllerRight (VRController)")
-                        rightController = controller;
-                }
-                Log("Left:" + leftController.ToString());
-                Log("Right: " + rightController.ToString());
-            }
-
-        }
 
 
 
         public void OnApplicationQuit()
         {
             SceneManager.activeSceneChanged -= SceneManagerOnActiveSceneChanged;
-            SceneManager.sceneLoaded -= SceneManager_sceneLoaded;
         }
 
         public void OnLevelWasLoaded(int level)
@@ -167,6 +149,7 @@ namespace Intro_Skip
 
         public void OnUpdate()
         {
+
             if (multiActive == false)
             {
                 if (soundIsPlaying == true && _songAudio != null)
@@ -230,9 +213,9 @@ namespace Intro_Skip
             {
                 _songAudio = AudioTimeSync.GetField<AudioSource>("_audioSource");
                 if (_songAudio != null)
-                { 
+                {
                     Log("Audio not null");
-                Log("Object Found");
+                    Log("Object Found");
                 }
             }
             else
@@ -244,7 +227,7 @@ namespace Intro_Skip
 
         public void CheckSkip()
         {
-            foreach (BeatmapLineData lineData in _mainGameSceneSetupData.difficultyLevel.beatmapData.beatmapLinesData)
+            foreach (BeatmapLineData lineData in _mainGameSceneSetupData.difficultyBeatmap.beatmapData.beatmapLinesData)
             {
                 Log("Parsing Line");
                 foreach (BeatmapObjectData objectData in lineData.beatmapObjectsData)
@@ -376,12 +359,12 @@ namespace Intro_Skip
             Log("Unpaused");
 
         }
-            public IEnumerator OneShotRumbleCoroutine(VRController controller, float duration, float impulseStrength, float intervalTime = 0f)
+        public IEnumerator OneShotRumbleCoroutine(VRController controller, float duration, float impulseStrength, float intervalTime = 0f)
         {
             VRPlatformHelper vr = VRPlatformHelper.instance;
             YieldInstruction waitForIntervalTime = new WaitForSeconds(intervalTime);
             float time = Time.time + 0.1f;
-            while(Time.time < time && isLevel == true)
+            while (Time.time < time && isLevel == true)
             {
                 vr.TriggerHapticPulse(controller.node, impulseStrength);
                 yield return intervalTime > 0 ? waitForIntervalTime : null;
