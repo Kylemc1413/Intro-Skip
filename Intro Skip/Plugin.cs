@@ -189,6 +189,17 @@ namespace Intro_Skip
         }
         public void Init()
         {
+            var controllers = Resources.FindObjectsOfTypeAll<VRController>();
+            foreach (VRController controller in controllers)
+            {
+                //        Log(controller.ToString());
+                if (controller.ToString() == "ControllerLeft (VRController)")
+                    leftController = controller;
+                if (controller.ToString() == "ControllerRight (VRController)")
+                    rightController = controller;
+            }
+            Log("Left:" + leftController.ToString());
+            Log("Right: " + rightController.ToString());
 
             obj = Resources.FindObjectsOfTypeAll<PlatformLeaderboardsModel>().FirstOrDefault();
             if (obj != null)
