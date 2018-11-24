@@ -59,14 +59,5 @@ namespace Intro_Skip.Properties {
                 resourceCulture = value;
             }
         }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.IO.UnmanagedMemoryStream similar to System.IO.MemoryStream.
-        /// </summary>
-        internal static System.IO.UnmanagedMemoryStream gnome {
-            get {
-                return ResourceManager.GetStream("gnome", resourceCulture);
-            }
-        }
     }
 }

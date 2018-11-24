@@ -40,10 +40,8 @@ namespace Intro_Skip
 
         //Special Event stuffs
         public static bool specialEvent = true;
-        System.Random rnd = new System.Random();
         PlatformLeaderboardsModel obj;
         string playerID;
-        SoundPlayer simpleSound = new SoundPlayer(Properties.Resources.gnome);
         bool soundIsPlaying = false;
 
         public static bool multiActive = false;
@@ -100,18 +98,7 @@ namespace Intro_Skip
 
         private void SceneManagerOnActiveSceneChanged(Scene arg0, Scene scene)
         {   //Handle quitting/restarting song mid special event
-            if (soundIsPlaying == true)
-            {
-                simpleSound.Stop();
-                soundIsPlaying = false;
-            }
-            if (_songAudio != null)
-            {
-                SharedCoroutineStarter.instance.StopCoroutine(SpecialEvent());
-                soundIsPlaying = false;
-                _songAudio.pitch = 1f;
-                AudioTimeSync.forcedAudioSync = false;
-            }
+
 
             promptPlayer = false;
             isLevel = false;
@@ -301,18 +288,7 @@ namespace Intro_Skip
             SharedCoroutineStarter.instance.StartCoroutine(SkipToTime());
             Log("Attempting to Skip Intro");
 
-            int chance = rnd.Next(1400, 1500);
-            if (playerID == "76561198055583703")
-                chance = rnd.Next(1400, 1500);
-            Log("Chance number is " + chance);
-            if (specialEvent == true)
-            {
-                if (chance == 1413 || playerID == "1870350353062945" || playerID == "76561197966357374" && playerID != "76561198011570317")
-                {
-                    Log("Speical Event activating");
-                    SharedCoroutineStarter.instance.StartCoroutine(SpecialEvent());
-                }
-            }
+            
         }
 
         private IEnumerator SkipToTime()
@@ -339,26 +315,10 @@ namespace Intro_Skip
             else
                 Log("Will Not Skip Intro");
 
-
+            
         }
 
-        private IEnumerator SpecialEvent()
-        {
 
-            yield return new WaitForSecondsRealtime(0.1f);
-            _songAudio.pitch = 0f;
-            AudioTimeSync.forcedAudioSync = true;
-            simpleSound.Load();
-            simpleSound.Play();
-            soundIsPlaying = true;
-            Log("Waiting");
-            yield return new WaitForSecondsRealtime(16f);
-            soundIsPlaying = false;
-            _songAudio.pitch = 1f;
-            AudioTimeSync.forcedAudioSync = false;
-            Log("Unpaused");
-
-        }
         public IEnumerator OneShotRumbleCoroutine(VRController controller, float duration, float impulseStrength, float intervalTime = 0f)
         {
             VRPlatformHelper vr = VRPlatformHelper.instance;
