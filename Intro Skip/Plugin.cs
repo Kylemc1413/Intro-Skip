@@ -49,11 +49,24 @@ namespace Intro_Skip
         {
             SceneManager.activeSceneChanged += SceneManagerOnActiveSceneChanged;
             skipLongIntro = ModPrefs.GetBool("IntroSkip", "skipLongIntro", false, true);
-            SceneManager.sceneLoaded += SceneManager_sceneLoaded;
         }
 
-        private void SceneManager_sceneLoaded(Scene scene, LoadSceneMode arg1)
-        {
+
+        private void SceneManagerOnActiveSceneChanged(Scene arg0, Scene scene)
+        {   //Handle quitting/restarting song mid special event
+
+            hasSkipped = false;
+            promptPlayer = false;
+            isLevel = false;
+
+
+            if (scene.name == "Menu")
+            {
+
+                firstObjectTime = 1000000;
+                introSkipTime = 0;
+
+            }
             skipLongIntro = ModPrefs.GetBool("IntroSkip", "skipLongIntro", false, true);
             if (scene.name == "GameCore")
             {
@@ -87,34 +100,16 @@ namespace Intro_Skip
                             Init();
 
                 }
-            else
-            {
-                isLevel = false;
-            }
+                else
+                {
+                    isLevel = false;
+                    DestroyPrompt();
+                }
 
-                SharedCoroutineStarter.instance.StartCoroutine(DelayedSetSkip()); ;
+                SharedCoroutineStarter.instance.StartCoroutine(DelayedSetSkip());
+
             }
         }
-
-        private void SceneManagerOnActiveSceneChanged(Scene arg0, Scene scene)
-        {   //Handle quitting/restarting song mid special event
-
-
-            promptPlayer = false;
-            isLevel = false;
-
-
-            if (scene.name == "Menu")
-            {
-
-                firstObjectTime = 1000000;
-                introSkipTime = 0;
-
-
-            }
-
-        }
-
 
 
 
