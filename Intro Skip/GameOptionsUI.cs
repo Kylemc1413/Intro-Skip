@@ -1,19 +1,40 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-
+using static UnityEngine.UI.Toggle;
 /*
  * Created by Moon on 10/14/2018
  * Helper class to assist in adding items to the Game Option list
- * 
+ *
  * IMPORTANT!!! => You *MUST* use this in "ActiveSceneChanged".
  * This class registers a callback with "SceneLoaded" for its own purposes.
- * If you use this in "SceneLoaded", it WILL break.
+ * If you use this in "SceneLoaded", the internal callback will never be called.
+ *
+ * Notes:
+ * This can be used in multiple plugins at the same time.
+ *
+ * Yes, I know my use of reflection is a big, big, avoidable mess. I know.
+ * I see it too and it makes me cringe because this could all be so much
+ * simpler without dealing with multiple plugins. But you know what?
+ * This is how I did it. ~~I had fun~~. It works.
+ * Let's just agree to not ask questions, eh?
+ *
+ * The plugin with the latest version of the helper will be used to display
+ * the menu. For example, right now, the custom options pages look exactly
+ * like the default options page. They have the divider and the Defaults
+ * button. We'll call this "Version 1". I'm thinking of making the custom
+ * options pages cover the whole panel, so that option names can be longer
+ * without wrapping. We'll call that "Update 2". If one plugin is using
+ * "Update 1" and another is using "Update 2", the one using "Update 2"
+ * will be the one that Build()s the menu, and the plugin using
+ * "Update 1" will have its options displayed covering the whole panel.
  */
 
 namespace Intro_Skip
@@ -22,6 +43,7 @@ namespace Intro_Skip
     {
         public GameObject gameObject;
         public string optionName;
+        public bool initialized;
         public abstract void Instantiate();
     }
 
@@ -37,15 +59,15 @@ namespace Intro_Skip
 
         public override void Instantiate()
         {
+            if (initialized) return;
+
             //We have to find our own target
             //TODO: Clean up time complexity issue. This is called for each new option
-            StandardLevelDetailViewController _sldvc = Resources.FindObjectsOfTypeAll<StandardLevelDetailViewController>().First();
-            GameplayOptionsViewController _govc = _sldvc.GetField<GameplayOptionsViewController>("_gameplayOptionsViewController");
-            RectTransform container = (RectTransform)_govc.transform.Find("Switches").Find("Container");
+            SoloFreePlayFlowCoordinator _sldvc = Resources.FindObjectsOfTypeAll<SoloFreePlayFlowCoordinator>().First();
+            GameplaySetupViewController _govc = _sldvc.GetField<GameplaySetupViewController>("_gameplaySetupViewController");
+            RectTransform container = (RectTransform)_govc.transform.Find("GameplayModifiers").Find("RightColumn");
 
-            //TODO: Can probably slim this down a bit
-            gameObject = UnityEngine.Object.Instantiate(container.Find("NoEnergy").gameObject, container);
-            gameObject.GetComponentInChildren<TextMeshProUGUI>().text = optionName;
+            gameObject = UnityEngine.Object.Instantiate(GameOptionsUI.noFail.gameObject, container);
             gameObject.name = optionName;
             gameObject.layer = container.gameObject.layer;
             gameObject.transform.parent = container;
@@ -54,8 +76,24 @@ namespace Intro_Skip
             gameObject.transform.rotation = Quaternion.identity;
             gameObject.SetActive(false); //All options start disabled
 
-            gameObject.GetComponentInChildren<HMUI.Toggle>().isOn = GetValue;
-            gameObject.GetComponentInChildren<HMUI.Toggle>().didSwitchEvent += (_, e) => { OnToggle?.Invoke(e); };
+            var tog = gameObject.GetComponentInChildren<GameplayModifierToggle>();
+            if (tog != null)
+            {
+                tog.toggle.isOn = GetValue;
+                tog.toggle.onValueChanged.RemoveAllListeners();
+                tog.toggle.onValueChanged.AddListener((bool e) => { OnToggle?.Invoke(e); });
+            }
+
+            SharedCoroutineStarter.instance.StartCoroutine(OnIsSet(tog, optionName));
+
+            initialized = true;
+        }
+
+        private IEnumerator OnIsSet(GameplayModifierToggle t, string optionName)
+        {
+        
+            while (t.GetPrivateField<TextMeshProUGUI>("_nameText").text == "!NOT SET!") yield return null;
+            t.GetPrivateField<TextMeshProUGUI>("_nameText").text = optionName;
         }
     }
 
@@ -72,11 +110,15 @@ namespace Intro_Skip
 
         public override void Instantiate()
         {
+            if (initialized) return;
+
+            Plugin.Log($"[multi] Intantiating {optionName}");
+
             //We have to find our own target
             //TODO: Clean up time complexity issue. This is called for each new option
-            StandardLevelDetailViewController _sldvc = Resources.FindObjectsOfTypeAll<StandardLevelDetailViewController>().First();
-            GameplayOptionsViewController _govc = _sldvc.GetField<GameplayOptionsViewController>("_gameplayOptionsViewController");
-            RectTransform container = (RectTransform)_govc.transform.Find("Switches").Find("Container");
+            SoloFreePlayFlowCoordinator _sldvc = Resources.FindObjectsOfTypeAll<SoloFreePlayFlowCoordinator>().First();
+            GameplaySetupViewController _govc = _sldvc.GetField<GameplaySetupViewController>("_gameplaySetupViewController");
+            RectTransform container = (RectTransform)_govc.transform.Find("GameplayModifiers").Find("RightColumn");
 
             var volumeSettings = Resources.FindObjectsOfTypeAll<VolumeSettingsController>().FirstOrDefault();
             gameObject = UnityEngine.Object.Instantiate(volumeSettings.gameObject, container);
@@ -107,6 +149,9 @@ namespace Intro_Skip
             //Initialize the controller, as if we had just opened the settings menu
             newListSettingsController.Init();
             gameObject.SetActive(false);
+            initialized = true;
+
+            Plugin.Log($"Intantiated {optionName}");
         }
 
         public void AddOption(float value)
@@ -122,6 +167,25 @@ namespace Intro_Skip
 
     class GameOptionsUI : MonoBehaviour
     {
+        //The version of this helper.
+        //The plugin using the latest version
+        //will be used to Build() the options menu
+        public const int versionConst = 001;
+        public int versionCode = versionConst; //Non-static so it resets on each creation
+
+        //The function to call to build the UI
+        private static Action _buildFunc = Build;
+
+        //Future duplicated switches
+        public static Transform noFail = null;
+        public static Transform noObstacles = null;
+        public static Transform noBombs = null;
+        public static Transform slowerSong = null;
+
+        //Future down button
+        public static Button _pageDownButton = null;
+        public static Button _pageUpButton = null;
+
         //Handle instances (each instance dies on new scene load, new ones are created on access)
         private static GameOptionsUI _instance;
         private static GameOptionsUI Instance
@@ -135,25 +199,61 @@ namespace Intro_Skip
                     {
                         var existingComponent = existingObject.GetComponent("GameOptionsUI");
 
-                        _instance = new GameOptionsUI();
-                        _instance.customOptions = existingObject.GetComponent("GameOptionsUI").GetField<IList<object>>("customOptions");
+                        //The following `if` is necessary because Unity overrides == to return null
+                        //when a MonoBehavior isn't active. It's annoying, and getting in my way.
+                        //Hence this workaround.
+                        if (IsReallyNull(_instance))
+                        {
+                            _instance = new GameOptionsUI();
+                        }
+
+                        //Keep the override's options list up to date with the global one
+                        var existingOptions = existingComponent.GetField<IList<object>>("customOptions");
+                        _instance.customOptions = existingOptions;
+
+                        //If this version is newer, we will override the build
+                        if (existingComponent.GetField<int>("versionCode") < versionConst)
+                        {
+                            existingComponent.SetField("versionCode", _instance.versionCode);
+                            existingComponent.InvokeMethod("SetBuild", (Action)Build);
+                        }
                     }
                     else
                     {
                         _instance = new GameObject("GameOptionsUI").AddComponent<GameOptionsUI>();
+                        DontDestroyOnLoad(_instance.gameObject);
 
-                        //If we're here, this is the class that will handle the ".Build()"
-                        //when necessary. Only the first instance created will make it here.
-                        UnityAction<Scene, LoadSceneMode> buildWhenLoaded = (Scene arg0, LoadSceneMode _) => {
-                            if (arg0.name == "Menu") Build();
-                        };
-                        SceneManager.sceneLoaded -= buildWhenLoaded;
-                        SceneManager.sceneLoaded += buildWhenLoaded;
+                        SceneManager.activeSceneChanged += ((Scene from, Scene to) =>
+                        {
+                            //If we're here, this is the class that will handle the ".Build()"
+                            //when necessary. Only the first instance created will make it here.
+                            _buildFunc.Invoke();
+                        });
                     }
                 }
 
                 return _instance;
             }
+        }
+
+        //Helper. Checks to see if we can access the custom options.
+        //If so, the instance exists.
+        //Hacky. Shut up.
+        public static bool IsReallyNull(GameOptionsUI toTest)
+        {
+            IList<object> sample = null;
+            try
+            {
+                sample = toTest.GetField<IList<object>>("customOptions");
+            }
+            catch { }
+            return sample == null;
+        }
+
+        //Set the build method to call
+        public static void SetBuild(Action buildFunc)
+        {
+            _buildFunc = buildFunc;
         }
 
         //Index of current list
@@ -207,52 +307,76 @@ namespace Intro_Skip
         public static void Build()
         {
             //Grab necessary references
-            StandardLevelDetailViewController _sldvc = Resources.FindObjectsOfTypeAll<StandardLevelDetailViewController>().First();
-            GameplayOptionsViewController _govc = _sldvc.GetField<GameplayOptionsViewController>("_gameplayOptionsViewController");
+            SoloFreePlayFlowCoordinator _sldvc = Resources.FindObjectsOfTypeAll<SoloFreePlayFlowCoordinator>().First();
+            GameplaySetupViewController _govc = _sldvc.GetField<GameplaySetupViewController>("_gameplaySetupViewController");
 
             //Get reference to the switch container
-            RectTransform container = (RectTransform)_govc.transform.Find("Switches").Find("Container");
-            container.sizeDelta = new Vector2(container.sizeDelta.x, container.sizeDelta.y + 7f); //Grow container so it aligns properly with text
+            RectTransform container = (RectTransform)_govc.transform.Find("GameplayModifiers").Find("RightColumn");
 
-            //Get references to the original switches, so we can later duplicate then destroy them
-            Transform noEnergyOriginal = container.Find("NoEnergy");
-            Transform noObstaclesOriginal = container.Find("NoObstacles");
-            Transform mirrorOriginal = container.Find("Mirror");
-            Transform staticLightsOriginal = container.Find("StaticLights");
-
-            //Get references to other UI elements we need to hide
-            //Transform divider = (RectTransform)_govc.transform.Find("Switches").Find("Separator");
-            //Transform defaults = (RectTransform)_govc.transform.Find("Switches").Find("DefaultsButton");
-
-            //Future duplicated switches
-            Transform noEnergy = null;
-            Transform noObstacles = null;
-            Transform mirror = null;
-            Transform staticLights = null;
-
-            //Future down button
-            Button _pageDownButton = null;
-
-            //Create up button
-            Button _pageUpButton = Instantiate(Resources.FindObjectsOfTypeAll<Button>().First(x => (x.name == "PageUpButton")), container);
-            _pageUpButton.transform.parent = container;
-            _pageUpButton.transform.localScale = Vector3.one;
-            (_pageUpButton.transform as RectTransform).sizeDelta = new Vector2((_pageUpButton.transform.parent as RectTransform).sizeDelta.x, 3.5f);
-            _pageUpButton.onClick.AddListener(delegate ()
+            if (_pageUpButton == null)
             {
-                Instance.ChangePage(--Instance._listIndex, container, noEnergy, noObstacles, mirror, staticLights);
+                //container.sizeDelta = new Vector2(container.sizeDelta.x, container.sizeDelta.y + 7f); //Grow container so it aligns properly with text
 
-                //Nice responsive scroll buttons
-                if (Instance._listIndex <= 0) _pageUpButton.interactable = false;
-                if (Instance.customOptions.Count > 0) _pageDownButton.interactable = true;
-            });
-            _pageUpButton.interactable = false;
+                //Get references to the original switches, so we can later duplicate then destroy them
+                Transform noFailOriginal = container.Find("NoFail");
+                Transform noObstaclesOriginal = container.Find("NoObstacles");
+                Transform noBombsOriginal = container.Find("NoBombs");
+                Transform slowerSongOriginal = container.Find("SlowerSong");
 
-            //Duplicate and delete default toggles so that the up button is on the top
-            noEnergy = Instantiate(noEnergyOriginal, container);
-            noObstacles = Instantiate(noObstaclesOriginal, container);
-            mirror = Instantiate(mirrorOriginal, container);
-            staticLights = Instantiate(staticLightsOriginal, container);
+                //Get references to other UI elements we need to hide
+                //Transform divider = (RectTransform)_govc.transform.Find("Switches").Find("Separator");
+                //Transform defaults = (RectTransform)_govc.transform.Find("Switches").Find("DefaultsButton");
+
+                //Create up button
+                _pageUpButton = Instantiate(Resources.FindObjectsOfTypeAll<Button>().First(x => (x.name == "PageUpButton")), container);
+                _pageUpButton.transform.parent = container.parent;
+                _pageUpButton.transform.localScale = Vector3.one;
+                _pageUpButton.transform.localPosition -= new Vector3(0, 5);
+                //(_pageUpButton.transform as RectTransform).sizeDelta = new Vector2((_pageUpButton.transform.parent as RectTransform).sizeDelta.x, 3.5f);
+                _pageUpButton.onClick.RemoveAllListeners();
+                _pageUpButton.onClick.AddListener(delegate ()
+                {
+                    Instance.ChangePage(--Instance._listIndex, container, noFail, noObstacles, noBombs, slowerSong);
+
+                    //Nice responsive scroll buttons
+                    if (Instance._listIndex <= 0) _pageUpButton.interactable = false;
+                    if (Instance.customOptions.Count > 0) _pageDownButton.interactable = true;
+                });
+
+
+                //Duplicate and delete default toggles so that the up button is on the top
+                noFail = Instantiate(noFailOriginal, container);
+                noObstacles = Instantiate(noObstaclesOriginal, container);
+                noBombs = Instantiate(noBombsOriginal, container);
+                slowerSong = Instantiate(slowerSongOriginal, container);
+
+                //Destroy original toggles and set their corresponding references to the new toggles
+                DestroyImmediate(noFailOriginal.gameObject);
+                DestroyImmediate(noObstaclesOriginal.gameObject);
+                DestroyImmediate(noBombsOriginal.gameObject);
+                DestroyImmediate(slowerSongOriginal.gameObject);
+
+                //_govc.SetField(gmt.First(g => g.name == "NoFail"), noEnergy.gameObject.GetComponentInChildren<HMUI.Toggle>());
+                //_govc.SetField("_noObstaclesToggle", noObstacles.gameObject.GetComponentInChildren<HMUI.Toggle>());
+                //_govc.SetField("_mirrorToggle", noBombs.gameObject.GetComponentInChildren<HMUI.Toggle>());
+                //_govc.SetField("_staticLightsToggle", slowerSong.gameObject.GetComponentInChildren<HMUI.Toggle>());
+
+                //Create down button
+                _pageDownButton = Instantiate(Resources.FindObjectsOfTypeAll<Button>().First(x => (x.name == "PageDownButton")), container);
+                _pageDownButton.transform.parent = container.parent;
+                _pageDownButton.transform.localScale = Vector3.one;
+                _pageDownButton.transform.localPosition -= new Vector3(0, 6);
+                //(_pageDownButton.transform as RectTransform).sizeDelta = new Vector2((_pageDownButton.transform.parent as RectTransform).sizeDelta.x, (_pageDownButton.transform as RectTransform).sizeDelta.y);
+                _pageDownButton.onClick.RemoveAllListeners();
+                _pageDownButton.onClick.AddListener(delegate ()
+                {
+                    Instance.ChangePage(++Instance._listIndex, container, noFail, noObstacles, noBombs, slowerSong);
+
+                    //Nice responsive scroll buttons
+                    if (Instance._listIndex >= 0) _pageUpButton.interactable = true;
+                    if (((Instance.customOptions.Count + 4 - 1) / 4) - Instance._listIndex <= 0) _pageDownButton.interactable = false;
+                });
+            }
 
             //Create custom options
             foreach (object option in Instance.customOptions)
@@ -261,31 +385,12 @@ namespace Intro_Skip
                 option.InvokeMethod("Instantiate");
             }
 
-            //Destroy original toggles and set their corresponding references to the new toggles
-            DestroyImmediate(noEnergyOriginal.gameObject);
-            DestroyImmediate(noObstaclesOriginal.gameObject);
-            DestroyImmediate(mirrorOriginal.gameObject);
-            DestroyImmediate(staticLightsOriginal.gameObject);
-
-            _govc.SetField("_noEnergyToggle", noEnergy.gameObject.GetComponentInChildren<HMUI.Toggle>());
-            _govc.SetField("_noObstaclesToggle", noObstacles.gameObject.GetComponentInChildren<HMUI.Toggle>());
-            _govc.SetField("_mirrorToggle", mirror.gameObject.GetComponentInChildren<HMUI.Toggle>());
-            _govc.SetField("_staticLightsToggle", staticLights.gameObject.GetComponentInChildren<HMUI.Toggle>());
-
-            //Create down button
-            _pageDownButton = Instantiate(Resources.FindObjectsOfTypeAll<Button>().First(x => (x.name == "PageDownButton")), container);
-            _pageDownButton.transform.parent = container;
-            _pageDownButton.transform.localScale = Vector3.one;
-            (_pageDownButton.transform as RectTransform).sizeDelta = new Vector2((_pageDownButton.transform.parent as RectTransform).sizeDelta.x, (_pageDownButton.transform as RectTransform).sizeDelta.y);
-            _pageDownButton.onClick.AddListener(delegate ()
-            {
-                Instance.ChangePage(++Instance._listIndex, container, noEnergy, noObstacles, mirror, staticLights);
-
-                //Nice responsive scroll buttons
-                if (Instance._listIndex >= 0) _pageUpButton.interactable = true;
-                if (((Instance.customOptions.Count + 4 - 1) / 4) - Instance._listIndex <= 0) _pageDownButton.interactable = false;
-            });
+            _pageUpButton.interactable = false;
             _pageDownButton.interactable = Instance.customOptions.Count > 0;
+
+            //Unfortunately, due to weird object creation for versioning, this doesn't always
+            //happen when the scene changes
+            Instance._listIndex = 0;
         }
     }
 

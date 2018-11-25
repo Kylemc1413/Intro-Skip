@@ -52,9 +52,15 @@ namespace Intro_Skip
             skipLongIntro = ModPrefs.GetBool("IntroSkip", "skipLongIntro", false, true);
         }
 
-        private void SceneManager_sceneLoaded(Scene arg0, LoadSceneMode arg1)
+        private void SceneManager_sceneLoaded(Scene scene, LoadSceneMode arg1)
         {
-            
+
+            if (scene.name == "Menu")
+            {
+                var skipOption = GameOptionsUI.CreateToggleOption("Intro Skipping");
+                skipOption.GetValue = ModPrefs.GetBool("IntroSkip", "skipLongIntro", true, true);
+                skipOption.OnToggle += (skipLongIntro) => { ModPrefs.SetBool("IntroSkip", "skipLongIntro", skipLongIntro); Log("Changed Modprefs value"); };
+            }
         }
 
         private void SceneManagerOnActiveSceneChanged(Scene arg0, Scene scene)
