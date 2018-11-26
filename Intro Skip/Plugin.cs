@@ -13,7 +13,7 @@ using Object = UnityEngine.Object;
 using System.Media;
 using TMPro;
 using UnityEngine.XR;
-using BeatSaberCustomUI;
+using CustomUI.GameplaySettings;
 namespace Intro_Skip
 {
     public class Plugin : IPlugin
@@ -61,7 +61,7 @@ namespace Intro_Skip
             if (scene.name == "Menu")
             {
 
-                var skipOption = GameplaySettingsUI.CreateToggleOption("Intro Skipping");
+                var skipOption = GameplaySettingsUI.CreateToggleOption("Intro Skipping", "Gives Option to skip sufficiently long empty song intro");
                 skipOption.GetValue = ModPrefs.GetBool("IntroSkip", "skipLongIntro", true, true);
                 skipOption.OnToggle += (skipLongIntro) => { ModPrefs.SetBool("IntroSkip", "skipLongIntro", skipLongIntro); Log("Changed Modprefs value"); };
 
