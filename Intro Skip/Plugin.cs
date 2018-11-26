@@ -13,6 +13,7 @@ using Object = UnityEngine.Object;
 using System.Media;
 using TMPro;
 using UnityEngine.XR;
+using BeatSaberCustomUI;
 namespace Intro_Skip
 {
     public class Plugin : IPlugin
@@ -37,7 +38,6 @@ namespace Intro_Skip
 
         VRController leftController;
         VRController rightController;
-        ToggleOption skipOption;
         //Special Event stuffs
         public static bool specialEvent = true;
         PlatformLeaderboardsModel obj;
@@ -60,7 +60,12 @@ namespace Intro_Skip
 
             if (scene.name == "Menu")
             {
-                
+
+                var skipOption = GameplaySettingsUI.CreateToggleOption("Intro Skipping");
+                skipOption.GetValue = ModPrefs.GetBool("IntroSkip", "skipLongIntro", true, true);
+                skipOption.OnToggle += (skipLongIntro) => { ModPrefs.SetBool("IntroSkip", "skipLongIntro", skipLongIntro); Log("Changed Modprefs value"); };
+
+
             }
         }
 
@@ -70,8 +75,7 @@ namespace Intro_Skip
             hasSkipped = false;
             promptPlayer = false;
             isLevel = false;
-
-
+            
             if (scene.name == "Menu")
             {
 
@@ -183,6 +187,7 @@ namespace Intro_Skip
         public void OnFixedUpdate()
         {
         }
+
         public static void Log(string message)
         {
             Console.WriteLine("[{0}] {1}", "IntroSkip", message);
