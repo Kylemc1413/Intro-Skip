@@ -18,7 +18,7 @@ namespace Intro_Skip
     public class Plugin : IPlugin
     {
         public string Name => "Intro Skip";
-        public string Version => "1.4.1";
+        public string Version => "2.0.0";
         private readonly string[] env = { "DefaultEnvironment", "BigMirrorEnvironment", "TriangleEnvironment", "NiceEnvironment" };
 
         public static bool skipIntro = false;
@@ -37,29 +37,30 @@ namespace Intro_Skip
 
         VRController leftController;
         VRController rightController;
-
+        ToggleOption skipOption;
         //Special Event stuffs
         public static bool specialEvent = true;
         PlatformLeaderboardsModel obj;
         string playerID;
         bool soundIsPlaying = false;
-
+        bool firstCreate = false;
+        int i = 0;
         public static bool multiActive = false;
         public void OnApplicationStart()
         {
             SceneManager.activeSceneChanged += SceneManagerOnActiveSceneChanged;
             SceneManager.sceneLoaded += SceneManager_sceneLoaded;
-            skipLongIntro = ModPrefs.GetBool("IntroSkip", "skipLongIntro", false, true);
+            skipLongIntro = ModPrefs.GetBool("IntroSkip", "skipLongIntro", true, true);
+
         }
+
 
         private void SceneManager_sceneLoaded(Scene scene, LoadSceneMode arg1)
         {
 
             if (scene.name == "Menu")
             {
-                var skipOption = GameOptionsUI.CreateToggleOption("Intro Skipping");
-                skipOption.GetValue = ModPrefs.GetBool("IntroSkip", "skipLongIntro", true, true);
-                skipOption.OnToggle += (skipLongIntro) => { ModPrefs.SetBool("IntroSkip", "skipLongIntro", skipLongIntro); Log("Changed Modprefs value"); };
+                
             }
         }
 

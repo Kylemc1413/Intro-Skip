@@ -9,23 +9,24 @@ using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using static UnityEngine.UI.Toggle;
+
 /*
  * Created by Moon on 10/14/2018
  * Helper class to assist in adding items to the Game Option list
- *
+ * 
  * IMPORTANT!!! => You *MUST* use this in "ActiveSceneChanged".
  * This class registers a callback with "SceneLoaded" for its own purposes.
  * If you use this in "SceneLoaded", the internal callback will never be called.
- *
+ * 
  * Notes:
  * This can be used in multiple plugins at the same time.
- *
+ * 
  * Yes, I know my use of reflection is a big, big, avoidable mess. I know.
  * I see it too and it makes me cringe because this could all be so much
  * simpler without dealing with multiple plugins. But you know what?
  * This is how I did it. ~~I had fun~~. It works.
  * Let's just agree to not ask questions, eh?
- *
+ * 
  * The plugin with the latest version of the helper will be used to display
  * the menu. For example, right now, the custom options pages look exactly
  * like the default options page. They have the divider and the Defaults
@@ -67,7 +68,7 @@ namespace Intro_Skip
             GameplaySetupViewController _govc = _sldvc.GetField<GameplaySetupViewController>("_gameplaySetupViewController");
             RectTransform container = (RectTransform)_govc.transform.Find("GameplayModifiers").Find("RightColumn");
 
-            gameObject = UnityEngine.Object.Instantiate(GameOptionsUI.noFail.gameObject, container);
+            gameObject = UnityEngine.Object.Instantiate(container.Find("NoFail").gameObject, container);
             gameObject.name = optionName;
             gameObject.layer = container.gameObject.layer;
             gameObject.transform.parent = container;
@@ -91,10 +92,16 @@ namespace Intro_Skip
 
         private IEnumerator OnIsSet(GameplayModifierToggle t, string optionName)
         {
-        
             while (t.GetPrivateField<TextMeshProUGUI>("_nameText").text == "!NOT SET!") yield return null;
             t.GetPrivateField<TextMeshProUGUI>("_nameText").text = optionName;
         }
+        public void Reset()
+        {
+            GameObject.Destroy(this.gameObject);
+            initialized = false;
+
+        }
+
     }
 
     class MultiSelectOption : GameOption
@@ -111,8 +118,6 @@ namespace Intro_Skip
         public override void Instantiate()
         {
             if (initialized) return;
-
-            Plugin.Log($"[multi] Intantiating {optionName}");
 
             //We have to find our own target
             //TODO: Clean up time complexity issue. This is called for each new option
@@ -150,8 +155,6 @@ namespace Intro_Skip
             newListSettingsController.Init();
             gameObject.SetActive(false);
             initialized = true;
-
-            Plugin.Log($"Intantiated {optionName}");
         }
 
         public void AddOption(float value)
@@ -176,15 +179,10 @@ namespace Intro_Skip
         //The function to call to build the UI
         private static Action _buildFunc = Build;
 
-        //Future duplicated switches
-        public static Transform noFail = null;
-        public static Transform noObstacles = null;
-        public static Transform noBombs = null;
-        public static Transform slowerSong = null;
-
+        private static bool initialized = false;
         //Future down button
-        public static Button _pageDownButton = null;
-        public static Button _pageUpButton = null;
+        private static Button _pageDownButton = null;
+        private static Button _pageUpButton = null;
 
         //Handle instances (each instance dies on new scene load, new ones are created on access)
         private static GameOptionsUI _instance;
@@ -313,9 +311,16 @@ namespace Intro_Skip
             //Get reference to the switch container
             RectTransform container = (RectTransform)_govc.transform.Find("GameplayModifiers").Find("RightColumn");
 
-            if (_pageUpButton == null)
+            if (!initialized)
             {
                 //container.sizeDelta = new Vector2(container.sizeDelta.x, container.sizeDelta.y + 7f); //Grow container so it aligns properly with text
+
+
+                //Future duplicated switches
+                Transform noFail = null;
+                Transform noObstacles = null;
+                Transform noBombs = null;
+                Transform slowerSong = null;
 
                 //Get references to the original switches, so we can later duplicate then destroy them
                 Transform noFailOriginal = container.Find("NoFail");
@@ -350,16 +355,17 @@ namespace Intro_Skip
                 noBombs = Instantiate(noBombsOriginal, container);
                 slowerSong = Instantiate(slowerSongOriginal, container);
 
+                // Make sure the object names are the same as the originals
+                noFail.name = "NoFail";
+                noObstacles.name = "NoObstacles";
+                noBombs.name = "NoBombs";
+                slowerSong.name = "SlowerSong";
+
                 //Destroy original toggles and set their corresponding references to the new toggles
                 DestroyImmediate(noFailOriginal.gameObject);
                 DestroyImmediate(noObstaclesOriginal.gameObject);
                 DestroyImmediate(noBombsOriginal.gameObject);
                 DestroyImmediate(slowerSongOriginal.gameObject);
-
-                //_govc.SetField(gmt.First(g => g.name == "NoFail"), noEnergy.gameObject.GetComponentInChildren<HMUI.Toggle>());
-                //_govc.SetField("_noObstaclesToggle", noObstacles.gameObject.GetComponentInChildren<HMUI.Toggle>());
-                //_govc.SetField("_mirrorToggle", noBombs.gameObject.GetComponentInChildren<HMUI.Toggle>());
-                //_govc.SetField("_staticLightsToggle", slowerSong.gameObject.GetComponentInChildren<HMUI.Toggle>());
 
                 //Create down button
                 _pageDownButton = Instantiate(Resources.FindObjectsOfTypeAll<Button>().First(x => (x.name == "PageDownButton")), container);
@@ -376,6 +382,15 @@ namespace Intro_Skip
                     if (Instance._listIndex >= 0) _pageUpButton.interactable = true;
                     if (((Instance.customOptions.Count + 4 - 1) / 4) - Instance._listIndex <= 0) _pageDownButton.interactable = false;
                 });
+
+                _pageUpButton.interactable = false;
+                _pageDownButton.interactable = Instance.customOptions.Count > 0;
+
+                //Unfortunately, due to weird object creation for versioning, this doesn't always
+                //happen when the scene changes
+                Instance._listIndex = 0;
+
+                initialized = true;
             }
 
             //Create custom options
@@ -384,13 +399,6 @@ namespace Intro_Skip
                 //Due to possible "different" types (due to cross-plugin support), we need to do this through reflection
                 option.InvokeMethod("Instantiate");
             }
-
-            _pageUpButton.interactable = false;
-            _pageDownButton.interactable = Instance.customOptions.Count > 0;
-
-            //Unfortunately, due to weird object creation for versioning, this doesn't always
-            //happen when the scene changes
-            Instance._listIndex = 0;
         }
     }
 
