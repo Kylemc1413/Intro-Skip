@@ -14,6 +14,7 @@ using System.Media;
 using TMPro;
 using UnityEngine.XR;
 using CustomUI.GameplaySettings;
+using System.Drawing;
 namespace Intro_Skip
 {
     public class Plugin : IPlugin
@@ -35,7 +36,7 @@ namespace Intro_Skip
         GameObject promptObject;
         TextMeshPro _skipPrompt;
         public static AudioTimeSyncController AudioTimeSync { get; private set; }
-
+        private Sprite _introSkipIcon;
         VRController leftController;
         VRController rightController;
         //Special Event stuffs
@@ -48,20 +49,23 @@ namespace Intro_Skip
         public static bool multiActive = false;
         public void OnApplicationStart()
         {
+
             SceneManager.activeSceneChanged += SceneManagerOnActiveSceneChanged;
             SceneManager.sceneLoaded += SceneManager_sceneLoaded;
             skipLongIntro = ModPrefs.GetBool("IntroSkip", "skipLongIntro", true, true);
 
         }
-
+      
 
         private void SceneManager_sceneLoaded(Scene scene, LoadSceneMode arg1)
         {
 
             if (scene.name == "Menu")
             {
+                  if (_introSkipIcon == null)
+                _introSkipIcon = CustomUI.Utilities.UIUtilities.LoadSpriteFromResources("Intro_Skip.Resources.IntroSkip.png");
 
-                var skipOption = GameplaySettingsUI.CreateToggleOption("Intro Skipping", "Gives Option to skip sufficiently long empty song intro");
+                var skipOption = GameplaySettingsUI.CreateToggleOption("Intro Skipping", "Gives Option to skip sufficiently long empty song intro", _introSkipIcon);
                 skipOption.GetValue = ModPrefs.GetBool("IntroSkip", "skipLongIntro", true, true);
                 skipOption.OnToggle += (skipLongIntro) => { ModPrefs.SetBool("IntroSkip", "skipLongIntro", skipLongIntro); Log("Changed Modprefs value"); };
 
@@ -127,7 +131,14 @@ namespace Intro_Skip
             }
         }
 
-
+        public static byte[] GetResource(string ResourceName)
+        {
+            System.Reflection.Assembly asm = Assembly.GetExecutingAssembly();
+            System.IO.Stream stream = asm.GetManifestResourceStream(ResourceName);
+            byte[] data = new byte[stream.Length];
+            stream.Read(data, 0, (int)stream.Length);
+            return data;
+        }
 
 
 
@@ -296,7 +307,7 @@ namespace Intro_Skip
             _skipPrompt = promptObject.AddComponent<TextMeshPro>();
             _skipPrompt.text = "Press Trigger To Skip Intro";
             _skipPrompt.fontSize = 4;
-            _skipPrompt.color = Color.white;
+            _skipPrompt.color = UnityEngine.Color.white;
             _skipPrompt.font = Resources.Load<TMP_FontAsset>("Teko-Medium SDF No Glow");
             _skipPrompt.GetComponent<RectTransform>().SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, 5f);
             _skipPrompt.GetComponent<RectTransform>().SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 1f);
