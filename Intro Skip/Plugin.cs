@@ -127,7 +127,9 @@ namespace Intro_Skip
                 }
 
                 SharedCoroutineStarter.instance.StartCoroutine(DelayedSetSkip());
-
+                // _mainGameSceneSetupData is StandardLevelSceneSetupDataSO
+                if (_mainGameSceneSetupData.gameplayCoreSetupData.practiceSettings != null)
+                    Log("Practice mode on");
             }
         }
 
