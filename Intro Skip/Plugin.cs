@@ -20,7 +20,7 @@ namespace Intro_Skip
     public class Plugin : IPlugin
     {
         public string Name => "Intro Skip";
-        public string Version => "2.0.0";
+        public string Version => "2.0.1";
         private readonly string[] env = { "DefaultEnvironment", "BigMirrorEnvironment", "TriangleEnvironment", "NiceEnvironment" };
 
         public static bool skipIntro = false;
