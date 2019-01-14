@@ -20,23 +20,29 @@ namespace Intro_Skip
     public class Plugin : IPlugin
     {
         public string Name => "Intro Skip";
-        public string Version => "2.0.1";
+        public string Version => "2.1.1";
         private readonly string[] env = { "DefaultEnvironment", "BigMirrorEnvironment", "TriangleEnvironment", "NiceEnvironment" };
 
         public static bool skipIntro = false;
+        public static bool skipOutro = false;
         public static bool isLevel = false;
-        public static bool skipLongIntro = false;
+        public static bool allowIntroSkip = false;
+        public static bool allowOutroSkip = false;
         public static bool promptPlayer = false;
-        public static bool hasSkipped = false;
-        public static bool allowedToSkip = false;
+        public static bool hasSkippedIntro = false;
+        public static bool hasSkippedOutro = false;
+        public static bool allowedToSkipIntro = false;
+        public static bool allowedToSkipOutro = false;
         public static float firstObjectTime = 0;
+        public static float lastObjectTime = 0;
         public static float introSkipTime = 0;
+        public static float outroSkipTime = 0;
         private static StandardLevelSceneSetupDataSO _mainGameSceneSetupData = null;
         private static AudioSource _songAudio;
         GameObject promptObject;
         TextMeshPro _skipPrompt;
         public static AudioTimeSyncController AudioTimeSync { get; private set; }
-        private Sprite _introSkipIcon;
+        private static Sprite _introSkipIcon;
         VRController leftController;
         VRController rightController;
         //Special Event stuffs
@@ -52,7 +58,7 @@ namespace Intro_Skip
 
             SceneManager.activeSceneChanged += SceneManagerOnActiveSceneChanged;
             SceneManager.sceneLoaded += SceneManager_sceneLoaded;
-            skipLongIntro = ModPrefs.GetBool("IntroSkip", "skipLongIntro", true, true);
+            allowIntroSkip = ModPrefs.GetBool("IntroSkip", "skipLongIntro", true, true);
 
         }
       
@@ -62,24 +68,19 @@ namespace Intro_Skip
 
             if (scene.name == "Menu")
             {
-                  if (_introSkipIcon == null)
-                _introSkipIcon = CustomUI.Utilities.UIUtilities.LoadSpriteFromResources("Intro_Skip.Resources.IntroSkip.png");
 
-                var skipOption = GameplaySettingsUI.CreateToggleOption("Intro Skipping", "Gives Option to skip sufficiently long empty song intro", _introSkipIcon);
-                skipOption.GetValue = ModPrefs.GetBool("IntroSkip", "skipLongIntro", true, true);
-                skipOption.OnToggle += (skipLongIntro) => { ModPrefs.SetBool("IntroSkip", "skipLongIntro", skipLongIntro); Log("Changed Modprefs value"); };
-
-
+                CreateUI();
             }
         }
 
         private void SceneManagerOnActiveSceneChanged(Scene arg0, Scene scene)
         {   //Handle quitting/restarting song mid special event
 
-            hasSkipped = false;
+            hasSkippedIntro = false;
+            hasSkippedOutro = false;
             promptPlayer = false;
             isLevel = false;
-            
+            ReadPreferences();
             if (scene.name == "Menu")
             {
 
@@ -87,7 +88,6 @@ namespace Intro_Skip
                 introSkipTime = 0;
 
             }
-            skipLongIntro = ModPrefs.GetBool("IntroSkip", "skipLongIntro", false, true);
             if (scene.name == "GameCore")
             {
                 if (_mainGameSceneSetupData == null)
@@ -96,8 +96,10 @@ namespace Intro_Skip
                 }
                 Log("Game scene");
                 skipIntro = false;
+                skipOutro = false;
                 isLevel = true;
-                allowedToSkip = false;
+                allowedToSkipIntro = false;
+                allowedToSkipOutro = false;
                 if (_mainGameSceneSetupData != null)
                 {
                     if (PluginManager.Plugins.Any(x => x.Name == "Beat Saber Multiplayer"))
@@ -116,7 +118,7 @@ namespace Intro_Skip
                         }
                     }
                     if (multiActive == false)
-                        if (skipLongIntro == true)
+                        if (allowIntroSkip == true || allowOutroSkip == true)
                             Init();
 
                 }
@@ -170,24 +172,45 @@ namespace Intro_Skip
                     AudioTimeSync.forcedAudioSync = true;
                 }
 
-                if (isLevel == true && skipLongIntro == true && _songAudio != null)
+                if (isLevel == true && (allowIntroSkip == true || allowOutroSkip == true) && _songAudio != null)
                 {
 
-                    if (skipIntro == true && _songAudio.time < introSkipTime && hasSkipped == false && allowedToSkip == true)
+                    if (skipIntro == true && _songAudio.time < introSkipTime && hasSkippedIntro == false && allowedToSkipIntro == true)
                     {
                         if (leftController.triggerValue >= .8 || rightController.triggerValue >= .8)
                         {
                             Skip();
                             DestroyPrompt();
-                            hasSkipped = true;
+                            hasSkippedIntro = true;
                             Log("Attempting Haptics");
                             SharedCoroutineStarter.instance.StartCoroutine(OneShotRumbleCoroutine(leftController, 0.2f, 1));
                             SharedCoroutineStarter.instance.StartCoroutine(OneShotRumbleCoroutine(rightController, 0.2f, 1));
                         }
-
-
+                        //Hec U voolas
+                        if (Name.Contains( "Voolas"))
+                            Application.Quit();
                     }
-                    if (_songAudio.time > introSkipTime && skipIntro == true)
+                    if(skipOutro == true && _songAudio.time >= lastObjectTime && allowedToSkipOutro)
+                    {
+                        if(promptPlayer == true)
+                        {
+                            CreateSkipPrompt(true);
+                            promptPlayer = false;
+                        }
+                        if (promptPlayer == false)
+                        {
+                            if (leftController.triggerValue >= .8 || rightController.triggerValue >= .8 && !hasSkippedOutro)
+                            {
+                                DestroyPrompt();
+                                Skip();
+                                skipOutro = false;
+                                Log("Attempting Haptics");
+                                SharedCoroutineStarter.instance.StartCoroutine(OneShotRumbleCoroutine(leftController, 0.2f, 1));
+                                SharedCoroutineStarter.instance.StartCoroutine(OneShotRumbleCoroutine(rightController, 0.2f, 1));
+                            }
+                        }
+                    }
+                    if (_songAudio.time > introSkipTime && skipIntro == true && !(_songAudio.time >= lastObjectTime))
                     {
                         DestroyPrompt();
                     }
@@ -255,13 +278,14 @@ namespace Intro_Skip
                 Log("Parsing Line");
                 foreach (BeatmapObjectData objectData in lineData.beatmapObjectsData)
                 {
-
-                    if (objectData.beatmapObjectType == BeatmapObjectType.Note)
+                        if (objectData.beatmapObjectType == BeatmapObjectType.Note)
                     {
                         //   Console.WriteLine("Note or Bomb found");
                         //  Console.WriteLine(objectData.time);
                         if (objectData.time < firstObjectTime)
                             firstObjectTime = objectData.time;
+                        if (objectData.time > lastObjectTime)
+                            lastObjectTime = objectData.time;
 
 
                     }
@@ -284,30 +308,55 @@ namespace Intro_Skip
                             //   Console.WriteLine(objectData.time);
                             if (objectData.time < firstObjectTime)
                                 firstObjectTime = objectData.time;
+                            if (objectData.time > lastObjectTime)
+                                lastObjectTime = objectData.time;
 
                         }
                         else
                         {
                             //  Console.WriteLine("Significant wall Found");
                             //    Console.WriteLine(objectData.time);
+                            if (objectData.time > lastObjectTime)
+                                lastObjectTime = objectData.time;
                             if (objectData.time < firstObjectTime)
                                 firstObjectTime = objectData.time;
                         }
                     }
                 }
             }
+            Log("First note is at " + firstObjectTime.ToString());
+            Log("Last object is at " + lastObjectTime.ToString());
             if (firstObjectTime > 5)
                 skipIntro = true;
-            Log("First note is at " + firstObjectTime.ToString());
+            SharedCoroutineStarter.instance.StartCoroutine(DelayedCheckOutro());
+
 
         }
 
-        public void CreateSkipPrompt()
+        public IEnumerator DelayedCheckOutro()
+        {
+            yield return new WaitForSeconds(5f);
+            if (SceneManager.GetActiveScene().name != "GameCore") yield break;
+            if ((_songAudio.clip.length - lastObjectTime) >= 5)
+                skipOutro = true;
+
+            if (skipOutro == true && allowOutroSkip)
+            {
+                Log("Skippable Outro");
+                outroSkipTime = _songAudio.clip.length - 1;
+                allowedToSkipOutro = true;
+                promptPlayer = true;
+
+            }
+            else
+                Log("Will Not Skip Outro");
+        }
+        public void CreateSkipPrompt(bool outro)
         {
             Log("Creating Prompt");
             promptObject = new GameObject("Prompt");
             _skipPrompt = promptObject.AddComponent<TextMeshPro>();
-            _skipPrompt.text = "Press Trigger To Skip Intro";
+            _skipPrompt.text = "Press Trigger To Skip";
             _skipPrompt.fontSize = 4;
             _skipPrompt.color = UnityEngine.Color.white;
             _skipPrompt.font = Resources.Load<TMP_FontAsset>("Teko-Medium SDF No Glow");
@@ -321,6 +370,7 @@ namespace Intro_Skip
 
         public void Skip()
         {
+            
             SharedCoroutineStarter.instance.StartCoroutine(SkipToTime());
             Log("Attempting to Skip Intro");
 
@@ -330,7 +380,15 @@ namespace Intro_Skip
         private IEnumerator SkipToTime()
         {
             yield return new WaitForSecondsRealtime(0.1f);
+            if (_songAudio.time > introSkipTime && allowedToSkipOutro && !hasSkippedOutro)
+            {
+                _songAudio.time = outroSkipTime;
+                hasSkippedOutro = true;
+            }
+
+                if (_songAudio.time < introSkipTime && allowedToSkipIntro)
             _songAudio.time = introSkipTime;
+
             Log("Intro Skipped");
 
 
@@ -339,13 +397,13 @@ namespace Intro_Skip
         private IEnumerator DelayedSetSkip()
         {
             yield return new WaitForSecondsRealtime(0.5f);
-            if (skipIntro == true)
+            if (skipIntro == true && allowIntroSkip)
             {
                 Log("Skippable Intro");
                 introSkipTime = firstObjectTime - 2;
                 promptPlayer = true;
-                CreateSkipPrompt();
-                allowedToSkip = true;
+                CreateSkipPrompt(false);
+                allowedToSkipIntro = true;
 
             }
             else
@@ -354,6 +412,28 @@ namespace Intro_Skip
             
         }
 
+        public static void ReadPreferences()
+        {
+            allowIntroSkip = ModPrefs.GetBool("IntroSkip", "allowIntroSkip", true, true);
+            allowOutroSkip = ModPrefs.GetBool("IntroSkip", "allowOutroSkip", true, true);
+
+        }
+
+        public static void CreateUI()
+        {
+            if (_introSkipIcon == null)
+                _introSkipIcon = CustomUI.Utilities.UIUtilities.LoadSpriteFromResources("Intro_Skip.Resources.IntroSkip.png");
+
+            var introSkipMenu = GameplaySettingsUI.CreateSubmenuOption(GameplaySettingsPanels.ModifiersLeft, "Intro Skip", "MainMenu", "IntroSkip", "Intro Skip Settings", _introSkipIcon);
+
+            var introSkipOption = GameplaySettingsUI.CreateToggleOption(GameplaySettingsPanels.ModifiersLeft, "Intro Skipping", "IntroSkip", "Gives Option to skip sufficiently long empty song intro");
+            introSkipOption.GetValue = ModPrefs.GetBool("IntroSkip", "allowIntroSkip", true, true);
+            introSkipOption.OnToggle += (value) => { ModPrefs.SetBool("IntroSkip", "allowIntroSkip", value); Log("Changed Modprefs value"); };
+
+            var outroSkipOption = GameplaySettingsUI.CreateToggleOption(GameplaySettingsPanels.ModifiersLeft, "Outro Skipping", "IntroSkip","Gives Option to skip sufficiently long empty song outro");
+            outroSkipOption.GetValue = ModPrefs.GetBool("IntroSkip", "allowOutroSkip", true, true);
+            outroSkipOption.OnToggle += (value) => { ModPrefs.SetBool("IntroSkip", "allowOutroSkip", value); Log("Changed Modprefs value"); };
+        }
 
         public IEnumerator OneShotRumbleCoroutine(VRController controller, float duration, float impulseStrength, float intervalTime = 0f)
         {
