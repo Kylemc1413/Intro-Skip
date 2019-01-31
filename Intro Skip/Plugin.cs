@@ -20,7 +20,7 @@ namespace Intro_Skip
     public class Plugin : IPlugin
     {
         public string Name => "Intro Skip";
-        public string Version => "2.1.1";
+        public string Version => "2.1.2";
         private readonly string[] env = { "DefaultEnvironment", "BigMirrorEnvironment", "TriangleEnvironment", "NiceEnvironment" };
 
         public static bool skipIntro = false;
@@ -52,7 +52,7 @@ namespace Intro_Skip
         bool soundIsPlaying = false;
         bool firstCreate = false;
         int i = 0;
-        public static bool multiActive = false;
+        internal static bool isIsolated = false;
         public void OnApplicationStart()
         {
 
@@ -61,7 +61,7 @@ namespace Intro_Skip
             allowIntroSkip = ModPrefs.GetBool("IntroSkip", "skipLongIntro", true, true);
 
         }
-      
+
 
         private void SceneManager_sceneLoaded(Scene scene, LoadSceneMode arg1)
         {
@@ -90,6 +90,7 @@ namespace Intro_Skip
             }
             if (scene.name == "GameCore")
             {
+                isIsolated = BS_Utils.Gameplay.Gamemode.IsIsolatedLevel;
                 if (_mainGameSceneSetupData == null)
                 {
                     _mainGameSceneSetupData = Resources.FindObjectsOfTypeAll<StandardLevelSceneSetupDataSO>().FirstOrDefault();
@@ -102,24 +103,14 @@ namespace Intro_Skip
                 allowedToSkipOutro = false;
                 if (_mainGameSceneSetupData != null)
                 {
-                    if (PluginManager.Plugins.Any(x => x.Name == "Beat Saber Multiplayer"))
+                    if (!isIsolated)
                     {
-                        GameObject client = GameObject.Find("MultiplayerClient");
-                        if (client != null)
-                        {
-                            multiActive = true;
-                            Log("Found MultiplayerClient game object!");
-
-                        }
-                        else
-                        {
-                            multiActive = false;
-                            Log(" MultiplayerClient game object not found!");
-                        }
-                    }
-                    if (multiActive == false)
                         if (allowIntroSkip == true || allowOutroSkip == true)
                             Init();
+                    }
+                    else
+                        Log("Isolated");
+
 
                 }
                 else
@@ -163,7 +154,7 @@ namespace Intro_Skip
         public void OnUpdate()
         {
 
-            if (multiActive == false)
+            if (isIsolated == false)
             {
                 if (soundIsPlaying == true && _songAudio != null)
                 {
@@ -187,12 +178,12 @@ namespace Intro_Skip
                             SharedCoroutineStarter.instance.StartCoroutine(OneShotRumbleCoroutine(rightController, 0.2f, 1));
                         }
                         //Hec U voolas
-                        if (Name.Contains( "Voolas"))
+                        if (Name.Contains("Voolas"))
                             Application.Quit();
                     }
-                    if(skipOutro == true && _songAudio.time >= lastObjectTime && allowedToSkipOutro)
+                    if (skipOutro == true && _songAudio.time >= lastObjectTime && allowedToSkipOutro)
                     {
-                        if(promptPlayer == true)
+                        if (promptPlayer == true)
                         {
                             CreateSkipPrompt(true);
                             promptPlayer = false;
@@ -278,7 +269,7 @@ namespace Intro_Skip
                 Log("Parsing Line");
                 foreach (BeatmapObjectData objectData in lineData.beatmapObjectsData)
                 {
-                        if (objectData.beatmapObjectType == BeatmapObjectType.Note)
+                    if (objectData.beatmapObjectType == BeatmapObjectType.Note)
                     {
                         //   Console.WriteLine("Note or Bomb found");
                         //  Console.WriteLine(objectData.time);
@@ -370,11 +361,11 @@ namespace Intro_Skip
 
         public void Skip()
         {
-            
+
             SharedCoroutineStarter.instance.StartCoroutine(SkipToTime());
             Log("Attempting to Skip Intro");
 
-            
+
         }
 
         private IEnumerator SkipToTime()
@@ -386,8 +377,8 @@ namespace Intro_Skip
                 hasSkippedOutro = true;
             }
 
-                if (_songAudio.time < introSkipTime && allowedToSkipIntro)
-            _songAudio.time = introSkipTime;
+            if (_songAudio.time < introSkipTime && allowedToSkipIntro)
+                _songAudio.time = introSkipTime;
 
             Log("Intro Skipped");
 
@@ -409,7 +400,7 @@ namespace Intro_Skip
             else
                 Log("Will Not Skip Intro");
 
-            
+
         }
 
         public static void ReadPreferences()
@@ -430,7 +421,7 @@ namespace Intro_Skip
             introSkipOption.GetValue = ModPrefs.GetBool("IntroSkip", "allowIntroSkip", true, true);
             introSkipOption.OnToggle += (value) => { ModPrefs.SetBool("IntroSkip", "allowIntroSkip", value); Log("Changed Modprefs value"); };
 
-            var outroSkipOption = GameplaySettingsUI.CreateToggleOption(GameplaySettingsPanels.ModifiersLeft, "Outro Skipping", "IntroSkip","Gives Option to skip sufficiently long empty song outro");
+            var outroSkipOption = GameplaySettingsUI.CreateToggleOption(GameplaySettingsPanels.ModifiersLeft, "Outro Skipping", "IntroSkip", "Gives Option to skip sufficiently long empty song outro");
             outroSkipOption.GetValue = ModPrefs.GetBool("IntroSkip", "allowOutroSkip", true, true);
             outroSkipOption.OnToggle += (value) => { ModPrefs.SetBool("IntroSkip", "allowOutroSkip", value); Log("Changed Modprefs value"); };
         }
