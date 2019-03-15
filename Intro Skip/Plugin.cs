@@ -20,7 +20,7 @@ namespace Intro_Skip
     public class Plugin : IPlugin
     {
         public string Name => "Intro Skip";
-        public string Version => "2.1.2";
+        public string Version => "2.2.0";
         private readonly string[] env = { "DefaultEnvironment", "BigMirrorEnvironment", "TriangleEnvironment", "NiceEnvironment" };
 
         public static bool skipIntro = false;
@@ -37,10 +37,10 @@ namespace Intro_Skip
         public static float lastObjectTime = 0;
         public static float introSkipTime = 0;
         public static float outroSkipTime = 0;
-        private static StandardLevelSceneSetupDataSO _mainGameSceneSetupData = null;
+        private static BS_Utils.Gameplay.LevelData _mainGameSceneSetupData = null;
         private static AudioSource _songAudio;
         GameObject promptObject;
-        TextMeshPro _skipPrompt;
+        TextMeshProUGUI _skipPrompt;
         public static AudioTimeSyncController AudioTimeSync { get; private set; }
         private static Sprite _introSkipIcon;
         VRController leftController;
@@ -59,14 +59,14 @@ namespace Intro_Skip
             SceneManager.activeSceneChanged += SceneManagerOnActiveSceneChanged;
             SceneManager.sceneLoaded += SceneManager_sceneLoaded;
             allowIntroSkip = ModPrefs.GetBool("IntroSkip", "skipLongIntro", true, true);
-
+            allowOutroSkip = ModPrefs.GetBool("IntroSkip", "allowOutroSkip", true, true);
         }
 
 
         private void SceneManager_sceneLoaded(Scene scene, LoadSceneMode arg1)
         {
 
-            if (scene.name == "Menu")
+            if (scene.name == "MenuCore")
             {
 
                 CreateUI();
@@ -81,7 +81,7 @@ namespace Intro_Skip
             promptPlayer = false;
             isLevel = false;
             ReadPreferences();
-            if (scene.name == "Menu")
+            if (scene.name == "MenuCore")
             {
 
                 firstObjectTime = 1000000;
@@ -93,7 +93,7 @@ namespace Intro_Skip
                 isIsolated = BS_Utils.Gameplay.Gamemode.IsIsolatedLevel;
                 if (_mainGameSceneSetupData == null)
                 {
-                    _mainGameSceneSetupData = Resources.FindObjectsOfTypeAll<StandardLevelSceneSetupDataSO>().FirstOrDefault();
+                    _mainGameSceneSetupData = BS_Utils.Plugin.LevelData;
                 }
                 Log("Game scene");
                 skipIntro = false;
@@ -103,13 +103,13 @@ namespace Intro_Skip
                 allowedToSkipOutro = false;
                 if (_mainGameSceneSetupData != null)
                 {
-                    if (!isIsolated)
-                    {
+              //      if (!isIsolated)
+                //    {
                         if (allowIntroSkip == true || allowOutroSkip == true)
                             Init();
-                    }
-                    else
-                        Log("Isolated");
+                  //  }
+               //     else
+                //        Log("Isolated");
 
 
                 }
@@ -120,8 +120,9 @@ namespace Intro_Skip
                 }
 
                 SharedCoroutineStarter.instance.StartCoroutine(DelayedSetSkip());
+                SharedCoroutineStarter.instance.StartCoroutine(DelayedCheckOutro());
                 // _mainGameSceneSetupData is StandardLevelSceneSetupDataSO
-                if (_mainGameSceneSetupData.gameplayCoreSetupData.practiceSettings != null)
+                if (_mainGameSceneSetupData.GameplayCoreSceneSetupData.practiceSettings != null)
                     Log("Practice mode on");
             }
         }
@@ -154,7 +155,7 @@ namespace Intro_Skip
         public void OnUpdate()
         {
 
-            if (isIsolated == false)
+            if (true)
             {
                 if (soundIsPlaying == true && _songAudio != null)
                 {
@@ -264,13 +265,14 @@ namespace Intro_Skip
 
         public void CheckSkip()
         {
-            foreach (BeatmapLineData lineData in _mainGameSceneSetupData.difficultyBeatmap.beatmapData.beatmapLinesData)
+            foreach (BeatmapLineData lineData in _mainGameSceneSetupData.GameplayCoreSceneSetupData.difficultyBeatmap.beatmapData.beatmapLinesData)
             {
                 Log("Parsing Line");
                 foreach (BeatmapObjectData objectData in lineData.beatmapObjectsData)
                 {
                     if (objectData.beatmapObjectType == BeatmapObjectType.Note)
                     {
+                        Log(objectData.time.ToString());
                         //   Console.WriteLine("Note or Bomb found");
                         //  Console.WriteLine(objectData.time);
                         if (objectData.time < firstObjectTime)
@@ -319,14 +321,13 @@ namespace Intro_Skip
             Log("Last object is at " + lastObjectTime.ToString());
             if (firstObjectTime > 5)
                 skipIntro = true;
-            SharedCoroutineStarter.instance.StartCoroutine(DelayedCheckOutro());
 
 
         }
 
         public IEnumerator DelayedCheckOutro()
         {
-            yield return new WaitForSeconds(5f);
+            yield return new WaitForSeconds(1f);
             if (SceneManager.GetActiveScene().name != "GameCore") yield break;
             if ((_songAudio.clip.length - lastObjectTime) >= 5)
                 skipOutro = true;
@@ -346,14 +347,22 @@ namespace Intro_Skip
         {
             Log("Creating Prompt");
             promptObject = new GameObject("Prompt");
-            _skipPrompt = promptObject.AddComponent<TextMeshPro>();
-            _skipPrompt.text = "Press Trigger To Skip";
-            _skipPrompt.fontSize = 4;
-            _skipPrompt.color = UnityEngine.Color.white;
-            _skipPrompt.font = Resources.Load<TMP_FontAsset>("Teko-Medium SDF No Glow");
-            _skipPrompt.GetComponent<RectTransform>().SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, 5f);
-            _skipPrompt.GetComponent<RectTransform>().SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 1f);
-            _skipPrompt.rectTransform.position = new Vector3(-2.5f, 2.1f, 7.0f);
+            promptObject.transform.position = new Vector3(-2.5f, 2.1f, 7.0f);
+            promptObject.transform.localScale = new Vector3(0.025f, 0.025f, 0.025f);
+
+            Canvas _canvas = promptObject.AddComponent<Canvas>();
+            _canvas.renderMode = RenderMode.WorldSpace;
+            _canvas.enabled = false;
+            var rectTransform = _canvas.transform as RectTransform;
+            rectTransform.sizeDelta = new Vector2(100, 50);
+
+            _skipPrompt = CustomUI.BeatSaber.BeatSaberUI.CreateText(_canvas.transform as RectTransform, "Press Trigger To Skip", new Vector2(0, 10));
+            rectTransform = _skipPrompt.transform as RectTransform;
+            rectTransform.SetParent(_canvas.transform, false);
+            rectTransform.sizeDelta = new Vector2(100, 20);
+            _skipPrompt.fontSize = 15f;
+            _canvas.enabled = true;
+
         }
 
 
