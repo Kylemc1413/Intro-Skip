@@ -20,7 +20,7 @@ namespace Intro_Skip
     public class Plugin : IPlugin
     {
         public string Name => "Intro Skip";
-        public string Version => "2.2.0";
+        public string Version => "2.2.1";
         private readonly string[] env = { "DefaultEnvironment", "BigMirrorEnvironment", "TriangleEnvironment", "NiceEnvironment" };
 
         public static bool skipIntro = false;
@@ -95,7 +95,7 @@ namespace Intro_Skip
                 {
                     _mainGameSceneSetupData = BS_Utils.Plugin.LevelData;
                 }
-                Log("Game scene");
+             //   Log("Game scene");
                 skipIntro = false;
                 skipOutro = false;
                 isLevel = true;
@@ -238,8 +238,8 @@ namespace Intro_Skip
                 if (controller.ToString() == "ControllerRight (VRController)")
                     rightController = controller;
             }
-            Log("Left:" + leftController.ToString());
-            Log("Right: " + rightController.ToString());
+        //    Log("Left:" + leftController.ToString());
+          //  Log("Right: " + rightController.ToString());
 
             obj = Resources.FindObjectsOfTypeAll<PlatformLeaderboardsModel>().FirstOrDefault();
             if (obj != null)
@@ -258,7 +258,7 @@ namespace Intro_Skip
             }
             else
                 Log("Object is null");
-            Log("Level Found");
+         //   Log("Level Found");
             CheckSkip();
 
         }
@@ -267,7 +267,7 @@ namespace Intro_Skip
         {
             foreach (BeatmapLineData lineData in _mainGameSceneSetupData.GameplayCoreSceneSetupData.difficultyBeatmap.beatmapData.beatmapLinesData)
             {
-                Log("Parsing Line");
+             //   Log("Parsing Line");
                 foreach (BeatmapObjectData objectData in lineData.beatmapObjectsData)
                 {
                     if (objectData.beatmapObjectType == BeatmapObjectType.Note)
@@ -345,7 +345,7 @@ namespace Intro_Skip
         }
         public void CreateSkipPrompt(bool outro)
         {
-            Log("Creating Prompt");
+       //     Log("Creating Prompt");
             promptObject = new GameObject("Prompt");
             promptObject.transform.position = new Vector3(-2.5f, 2.1f, 7.0f);
             promptObject.transform.localScale = new Vector3(0.025f, 0.025f, 0.025f);
