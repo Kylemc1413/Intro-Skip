@@ -20,7 +20,7 @@ namespace Intro_Skip
     public class Plugin : IPlugin
     {
         public string Name => "Intro Skip";
-        public string Version => "2.2.1";
+        public string Version => "2.2.2";
         private readonly string[] env = { "DefaultEnvironment", "BigMirrorEnvironment", "TriangleEnvironment", "NiceEnvironment" };
 
         public static bool skipIntro = false;
@@ -272,7 +272,6 @@ namespace Intro_Skip
                 {
                     if (objectData.beatmapObjectType == BeatmapObjectType.Note)
                     {
-                        Log(objectData.time.ToString());
                         //   Console.WriteLine("Note or Bomb found");
                         //  Console.WriteLine(objectData.time);
                         if (objectData.time < firstObjectTime)
