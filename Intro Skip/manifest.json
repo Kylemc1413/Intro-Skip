@@ -1,0 +1,10 @@
+﻿{
+  "$schema": "https://raw.githubusercontent.com/nike4613/ModSaber-MetadataFileSchema/master/Schema.json",
+  "author": "Kyle",
+  "description": "",
+  "features": [],
+  "gameVersion": "0.13.2",
+  "id": "intro-skip",
+  "name": "Intro Skip",
+  "version": "2.2.3"
+}
