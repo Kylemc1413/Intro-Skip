@@ -1,5 +1,4 @@
-﻿using IllusionPlugin;
-using IllusionInjector;
+﻿using IPA.Old;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -20,7 +19,7 @@ namespace Intro_Skip
     public class Plugin : IPlugin
     {
         public string Name => "Intro Skip";
-        public string Version => "2.2.2";
+        public string Version => "2.2.4";
         private readonly string[] env = { "DefaultEnvironment", "BigMirrorEnvironment", "TriangleEnvironment", "NiceEnvironment" };
 
         public static bool skipIntro = false;
@@ -53,6 +52,7 @@ namespace Intro_Skip
         bool firstCreate = false;
         int i = 0;
         internal static bool isIsolated = false;
+        public static BS_Utils.Utilities.Config ModPrefs = new BS_Utils.Utilities.Config("IntroSkip");
         public void OnApplicationStart()
         {
 
