@@ -1,4 +1,4 @@
-﻿using IPA.Old;
+﻿using IPA;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -12,15 +12,11 @@ using Object = UnityEngine.Object;
 using System.Media;
 using TMPro;
 using UnityEngine.XR;
-using CustomUI.GameplaySettings;
 using System.Drawing;
 namespace Intro_Skip
 {
-    public class Plugin : IPlugin
+    public class Plugin : IBeatSaberPlugin
     {
-        public string Name => "Intro Skip";
-        public string Version => "2.2.4";
-        private readonly string[] env = { "DefaultEnvironment", "BigMirrorEnvironment", "TriangleEnvironment", "NiceEnvironment" };
 
         public static bool skipIntro = false;
         public static bool skipOutro = false;
@@ -55,15 +51,12 @@ namespace Intro_Skip
         public static BS_Utils.Utilities.Config ModPrefs = new BS_Utils.Utilities.Config("IntroSkip");
         public void OnApplicationStart()
         {
-
-            SceneManager.activeSceneChanged += SceneManagerOnActiveSceneChanged;
-            SceneManager.sceneLoaded += SceneManager_sceneLoaded;
             allowIntroSkip = ModPrefs.GetBool("IntroSkip", "skipLongIntro", true, true);
             allowOutroSkip = ModPrefs.GetBool("IntroSkip", "allowOutroSkip", true, true);
         }
 
 
-        private void SceneManager_sceneLoaded(Scene scene, LoadSceneMode arg1)
+        public void OnSceneLoaded(Scene scene, LoadSceneMode arg1)
         {
 
             if (scene.name == "MenuCore")
@@ -73,7 +66,7 @@ namespace Intro_Skip
             }
         }
 
-        private void SceneManagerOnActiveSceneChanged(Scene arg0, Scene scene)
+        public void OnActiveSceneChanged(Scene arg0, Scene scene)
         {   //Handle quitting/restarting song mid special event
 
             hasSkippedIntro = false;
@@ -81,7 +74,7 @@ namespace Intro_Skip
             promptPlayer = false;
             isLevel = false;
             ReadPreferences();
-            if (scene.name == "MenuCore")
+            if (scene.name == "MenuViewControllers")
             {
 
                 firstObjectTime = 1000000;
@@ -106,7 +99,7 @@ namespace Intro_Skip
               //      if (!isIsolated)
                 //    {
                         if (allowIntroSkip == true || allowOutroSkip == true)
-                            Init();
+                            InitIntroSkip();
                   //  }
                //     else
                 //        Log("Isolated");
@@ -140,7 +133,7 @@ namespace Intro_Skip
 
         public void OnApplicationQuit()
         {
-            SceneManager.activeSceneChanged -= SceneManagerOnActiveSceneChanged;
+
         }
 
         public void OnLevelWasLoaded(int level)
@@ -161,7 +154,7 @@ namespace Intro_Skip
                 {
                     Log("Pausing");
                     _songAudio.pitch = 0f;
-                    AudioTimeSync.forcedAudioSync = true;
+                 //   AudioTimeSync.forcedAudioSync = true;
                 }
 
                 if (isLevel == true && (allowIntroSkip == true || allowOutroSkip == true) && _songAudio != null)
@@ -169,7 +162,7 @@ namespace Intro_Skip
 
                     if (skipIntro == true && _songAudio.time < introSkipTime && hasSkippedIntro == false && allowedToSkipIntro == true)
                     {
-                        if (leftController.triggerValue >= .8 || rightController.triggerValue >= .8)
+                        if (leftController.triggerValue >= .8 || rightController.triggerValue >= .8 || Input.GetKeyDown(KeyCode.I))
                         {
                             Skip();
                             DestroyPrompt();
@@ -178,9 +171,7 @@ namespace Intro_Skip
                             SharedCoroutineStarter.instance.StartCoroutine(OneShotRumbleCoroutine(leftController, 0.2f, 1));
                             SharedCoroutineStarter.instance.StartCoroutine(OneShotRumbleCoroutine(rightController, 0.2f, 1));
                         }
-                        //Hec U voolas
-                        if (Name.Contains("Voolas"))
-                            Application.Quit();
+
                     }
                     if (skipOutro == true && _songAudio.time >= lastObjectTime && allowedToSkipOutro)
                     {
@@ -227,7 +218,7 @@ namespace Intro_Skip
             if (obj != null)
                 GameObject.Destroy(obj);
         }
-        public void Init()
+        public void InitIntroSkip()
         {
             var controllers = Resources.FindObjectsOfTypeAll<VRController>();
             foreach (VRController controller in controllers)
@@ -355,7 +346,7 @@ namespace Intro_Skip
             var rectTransform = _canvas.transform as RectTransform;
             rectTransform.sizeDelta = new Vector2(100, 50);
 
-            _skipPrompt = CustomUI.BeatSaber.BeatSaberUI.CreateText(_canvas.transform as RectTransform, "Press Trigger To Skip", new Vector2(0, 10));
+            _skipPrompt = CreateText(_canvas.transform as RectTransform, "Press Trigger To Skip", new Vector2(0, 10));
             rectTransform = _skipPrompt.transform as RectTransform;
             rectTransform.SetParent(_canvas.transform, false);
             rectTransform.sizeDelta = new Vector2(100, 20);
@@ -420,6 +411,7 @@ namespace Intro_Skip
 
         public static void CreateUI()
         {
+            /*
             if (_introSkipIcon == null)
                 _introSkipIcon = CustomUI.Utilities.UIUtilities.LoadSpriteFromResources("Intro_Skip.Resources.IntroSkip.png");
 
@@ -432,11 +424,12 @@ namespace Intro_Skip
             var outroSkipOption = GameplaySettingsUI.CreateToggleOption(GameplaySettingsPanels.ModifiersLeft, "Outro Skipping", "IntroSkip", "Gives Option to skip sufficiently long empty song outro");
             outroSkipOption.GetValue = ModPrefs.GetBool("IntroSkip", "allowOutroSkip", true, true);
             outroSkipOption.OnToggle += (value) => { ModPrefs.SetBool("IntroSkip", "allowOutroSkip", value); Log("Changed Modprefs value"); };
+            */
         }
 
         public IEnumerator OneShotRumbleCoroutine(VRController controller, float duration, float impulseStrength, float intervalTime = 0f)
         {
-            VRPlatformHelper vr = VRPlatformHelper.instance;
+            VRPlatformHelper vr = Resources.FindObjectsOfTypeAll<VRPlatformHelper>().First();
             YieldInstruction waitForIntervalTime = new WaitForSeconds(intervalTime);
             float time = Time.time + 0.1f;
             while (Time.time < time && isLevel == true)
@@ -446,5 +439,42 @@ namespace Intro_Skip
             }
         }
 
+        public static TextMeshProUGUI CreateText(RectTransform parent, string text, Vector2 anchoredPosition)
+        {
+            return CreateText(parent, text, anchoredPosition, new Vector2(60f, 10f));
+        }
+
+        /// <summary>
+        /// Creates a TextMeshProUGUI component.
+        /// </summary>
+        /// <param name="parent">Thet transform to parent the new TextMeshProUGUI component to.</param>
+        /// <param name="text">The text to be displayed.</param>
+        /// <param name="anchoredPosition">The position the text component should be anchored to.</param>
+        /// <param name="sizeDelta">The size of the text components RectTransform.</param>
+        /// <returns>The newly created TextMeshProUGUI component.</returns>
+        public static TextMeshProUGUI CreateText(RectTransform parent, string text, Vector2 anchoredPosition, Vector2 sizeDelta)
+        {
+            GameObject gameObj = new GameObject("CustomUIText");
+            gameObj.SetActive(false);
+
+            TextMeshProUGUI textMesh = gameObj.AddComponent<TextMeshProUGUI>();
+            textMesh.font = GameObject.Instantiate(Resources.FindObjectsOfTypeAll<TMP_FontAsset>().First(t => t.name == "Teko-Medium SDF No Glow"));
+            textMesh.rectTransform.SetParent(parent, false);
+            textMesh.text = text;
+            textMesh.fontSize = 4;
+            textMesh.color = UnityEngine.Color.white;
+
+            textMesh.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+            textMesh.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+            textMesh.rectTransform.sizeDelta = sizeDelta;
+            textMesh.rectTransform.anchoredPosition = anchoredPosition;
+
+            gameObj.SetActive(true);
+            return textMesh;
+        }
+
+        public void OnSceneUnloaded(Scene scene)
+        {
+        }
     }
 }
