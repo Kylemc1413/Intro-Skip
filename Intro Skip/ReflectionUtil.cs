@@ -4,7 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using UnityEngine;
-namespace Intro_Skip
+namespace IntroSkip
 {
 
     public static class ReflectionUtil
