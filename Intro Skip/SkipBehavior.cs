@@ -22,7 +22,7 @@ namespace IntroSkip
         private bool _skippableIntro = false;
         private float _introSkipTime = -1f;
         private float _outroSkipTime = -1f;
-        private float _lastObjectTime = -1f;
+        private float _lastObjectSkipTime = -1f;
         public void Awake()
         {
             if (!(Config.AllowIntroSkip || Config.AllowOutroSkip)) return;
@@ -88,7 +88,7 @@ namespace IntroSkip
             {
                 _skippableOutro = Config.AllowOutroSkip;
                 _outroSkipTime = _songAudio.clip.length - 1.5f;
-                _lastObjectTime = lastObjectTime;
+                _lastObjectSkipTime = lastObjectTime + 0.5f;
             }
             _init = true;
             Logger.log.Debug($"Skippable Intro: {_skippableIntro} | Skippable Outro: {_skippableOutro}");
@@ -123,7 +123,7 @@ namespace IntroSkip
             if (!(_skippableIntro || _skippableOutro)) return;
             float time = _songAudio.time;
             bool introPhase = (time < _introSkipTime) && _skippableIntro;
-            bool outroPhase = (time > _lastObjectTime && time < _outroSkipTime) && _skippableOutro;
+            bool outroPhase = (time > _lastObjectSkipTime && time < _outroSkipTime) && _skippableOutro;
             if (introPhase || outroPhase)
             {
                 if (!_skipPrompt.gameObject.activeSelf)
