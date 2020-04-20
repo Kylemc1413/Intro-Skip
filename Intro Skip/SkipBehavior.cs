@@ -17,7 +17,7 @@ namespace IntroSkip
         private VRController _leftController = null;
         private VRController _rightController = null;
 
-
+        
         private bool _skippableOutro = false;
         private bool _skippableIntro = false;
         private float _introSkipTime = -1f;
@@ -140,9 +140,17 @@ namespace IntroSkip
                StartCoroutine(OneShotRumbleCoroutine(_leftController, 0.2f, 1));
                StartCoroutine(OneShotRumbleCoroutine(_rightController, 0.2f, 1));
                 if (introPhase)
+                {
                     _songAudio.time = _introSkipTime;
+                    _skippableIntro = false;
+                }
+
                 else if (outroPhase)
+                {
                     _songAudio.time = _outroSkipTime;
+                    _skippableOutro = false;
+                }
+
 
             }
 
