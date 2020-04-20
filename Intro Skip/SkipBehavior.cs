@@ -9,10 +9,11 @@ using BeatSaberMarkupLanguage;
 using TMPro;
 namespace IntroSkip
 {
-    class SkipBehavior : MonoBehaviour
+    public class SkipBehavior : MonoBehaviour
     {
         private bool _init = false;
         private TextMeshProUGUI _skipPrompt;
+        private BeatmapObjectCallbackController _callbackController;
         private AudioSource _songAudio;
         private VRController _leftController = null;
         private VRController _rightController = null;
@@ -38,7 +39,7 @@ namespace IntroSkip
                 if (_rightController == null && controller.node == UnityEngine.XR.XRNode.RightHand)
                     _rightController = controller;
             }
-
+            _callbackController = Resources.FindObjectsOfTypeAll<BeatmapObjectCallbackController>().FirstOrDefault();
             var audioTimeSync = Resources.FindObjectsOfTypeAll<AudioTimeSyncController>().FirstOrDefault();
             if (audioTimeSync != null)
             {
@@ -47,10 +48,10 @@ namespace IntroSkip
             StartCoroutine(ReadMap());
         }
 
-        private IEnumerator ReadMap()
+        public IEnumerator ReadMap()
         {
             yield return new WaitForSeconds(0.1f);
-            var lineData = BS_Utils.Plugin.LevelData.GameplayCoreSceneSetupData.difficultyBeatmap.beatmapData.beatmapLinesData;
+            var lineData = _callbackController.GetField<BeatmapData>("_beatmapData").beatmapLinesData;
             float firstObjectTime = _songAudio.clip.length;
             float lastObjectTime = -1f;
             foreach(var line in lineData)
