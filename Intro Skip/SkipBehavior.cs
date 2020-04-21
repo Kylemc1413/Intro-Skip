@@ -121,7 +121,12 @@ namespace IntroSkip
         public void Update()
         {
             if (!_init || _songAudio == null) return;
-            if (!(_skippableIntro || _skippableOutro)) return;
+            if (!(_skippableIntro || _skippableOutro))
+            {
+                if (_skipPrompt.gameObject.activeSelf) _skipPrompt.gameObject.SetActive(false);
+                return;
+            }
+
             float time = _songAudio.time;
             bool introPhase = (time < _introSkipTime) && _skippableIntro;
             bool outroPhase = (time > _lastObjectSkipTime && time < _outroSkipTime) && _skippableOutro;
