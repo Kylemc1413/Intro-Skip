@@ -50,6 +50,9 @@ namespace IntroSkip
 
         public IEnumerator ReadMap()
         {
+            _init = false;
+            _skippableIntro = false;
+            _skippableOutro = false;
             yield return new WaitForSeconds(0.1f);
             var lineData = _callbackController.GetField<BeatmapData>("_beatmapData").beatmapLinesData;
             float firstObjectTime = _songAudio.clip.length;
