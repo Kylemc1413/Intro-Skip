@@ -48,11 +48,15 @@ namespace IntroSkip
             StartCoroutine(ReadMap());
         }
 
-        public IEnumerator ReadMap()
+        public void ReInit()
         {
             _init = false;
             _skippableIntro = false;
             _skippableOutro = false;
+            StartCoroutine(ReadMap());
+        }
+        public IEnumerator ReadMap()
+        {
             yield return new WaitForSeconds(0.1f);
             var lineData = _callbackController.GetField<BeatmapData>("_beatmapData").beatmapLinesData;
             float firstObjectTime = _songAudio.clip.length;
