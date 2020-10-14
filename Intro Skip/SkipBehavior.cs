@@ -29,6 +29,7 @@ namespace IntroSkip
             if (!(Config.AllowIntroSkip || Config.AllowOutroSkip)) return;
             bool practice = BS_Utils.Plugin.LevelData.GameplayCoreSceneSetupData.practiceSettings != null;
             if(practice || BS_Utils.Gameplay.Gamemode.IsIsolatedLevel) return;
+            if (BS_Utils.Plugin.LevelData.Mode == BS_Utils.Gameplay.Mode.Multiplayer) return;
 
             CreatePrompt();
             var controllers = Resources.FindObjectsOfTypeAll<VRController>();
@@ -173,14 +174,11 @@ namespace IntroSkip
 
         public IEnumerator OneShotRumbleCoroutine(VRController controller, float duration, float impulseStrength, float intervalTime = 0f)
         {
-            VRPlatformHelper vr = Resources.FindObjectsOfTypeAll<VRPlatformHelper>().First();
-            YieldInstruction waitForIntervalTime = new WaitForSeconds(intervalTime);
-            float time = Time.time + 0.1f;
-            while (Time.time < time)
-            {
-                vr.TriggerHapticPulse(controller.node, impulseStrength);
-                yield return intervalTime > 0 ? waitForIntervalTime : null;
-            }
+            IVRPlatformHelper vr = Resources.FindObjectsOfTypeAll<HapticFeedbackController>().FirstOrDefault()?.GetField<IVRPlatformHelper>("_vrPlatformHelper");
+
+            yield return new WaitForSeconds(intervalTime);
+            vr.TriggerHapticPulse(controller.node, 0.1f, impulseStrength, impulseStrength);
+            
         }
     }
 }
