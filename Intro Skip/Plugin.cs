@@ -12,7 +12,7 @@ namespace IntroSkip
         public void Init(IPA.Logging.Logger logger, Zenjector zenjector)
         {
             Logger.log = logger;
-            zenjector.OnGame<IntroSkipGameInstaller>().ShortCircuitForMultiplayer();
+            zenjector.OnGame<IntroSkipGameInstaller>().ShortCircuitForMultiplayer().ShortCircuitForTutorial();
         }
 
         [OnStart]
