@@ -20,16 +20,8 @@ namespace IntroSkip
         public void OnApplicationStart()
         {
             Config.Read();
-            BS_Utils.Utilities.BSEvents.gameSceneLoaded += BSEvents_gameSceneLoaded;
             BeatSaberMarkupLanguage.GameplaySetup.GameplaySetup.instance.AddTab("Intro Skip", "IntroSkip.UI.BSML.modifierUI.bsml", UI.ModifierUI.instance);
 
-        }
-
-        private void BSEvents_gameSceneLoaded()
-        {
-            Config.Read();
-            if(Config.AllowIntroSkip || Config.AllowOutroSkip)
-            new GameObject("IntroSkip Behavior").AddComponent<SkipBehavior>();
         }
 
         [OnExit]

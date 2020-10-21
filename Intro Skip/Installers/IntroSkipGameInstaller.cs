@@ -1,4 +1,5 @@
-﻿using Zenject;
+﻿using SiraUtil;
+using Zenject;
 
 namespace IntroSkip.Installers
 {
@@ -6,7 +7,11 @@ namespace IntroSkip.Installers
     {
         public override void InstallBindings()
         {
-            
+            Config.Read();
+            if (Config.AllowIntroSkip || Config.AllowOutroSkip)
+            {
+                Container.Bind<SkipBehavior>().FromNewComponentOnNewGameObject("IntroSkip Behavior").AsSingle();
+            }
         }
     }
 }
