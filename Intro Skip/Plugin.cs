@@ -1,5 +1,4 @@
 ﻿using IPA;
-using UnityEngine;
 using SiraUtil.Zenject;
 using IntroSkip.Installers;
 
@@ -13,7 +12,7 @@ namespace IntroSkip
         public void Init(IPA.Logging.Logger logger, Zenjector zenjector)
         {
             Logger.log = logger;
-            zenjector.OnGame<IntroSkipGameInstaller>();
+            zenjector.OnGame<IntroSkipGameInstaller>().ShortCircuitForMultiplayer();
         }
 
         [OnStart]
@@ -21,7 +20,6 @@ namespace IntroSkip
         {
             Config.Read();
             BeatSaberMarkupLanguage.GameplaySetup.GameplaySetup.instance.AddTab("Intro Skip", "IntroSkip.UI.BSML.modifierUI.bsml", UI.ModifierUI.instance);
-
         }
 
         [OnExit]
