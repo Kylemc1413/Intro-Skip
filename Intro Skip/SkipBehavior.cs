@@ -40,8 +40,7 @@ namespace IntroSkip
                 if (_rightController == null && controller.node == UnityEngine.XR.XRNode.RightHand)
                     _rightController = controller;
             }
-            _callbackController = Resources.FindObjectsOfTypeAll<BeatmapObjectCallbackController>().FirstOrDefault();
-            var audioTimeSync = Resources.FindObjectsOfTypeAll<AudioTimeSyncController>().FirstOrDefault();
+            var audioTimeSync = Resources.FindObjectsOfTypeAll<AudioTimeSyncController>().LastOrDefault();
             if (audioTimeSync != null)
             {
                 _songAudio = audioTimeSync.GetField<AudioSource>("_audioSource");
@@ -59,7 +58,9 @@ namespace IntroSkip
         public IEnumerator ReadMap()
         {
             yield return new WaitForSeconds(0.1f);
-            var lineData = _callbackController.GetField<BeatmapData>("_beatmapData").beatmapLinesData;
+            _callbackController = Resources.FindObjectsOfTypeAll<BeatmapObjectCallbackController>().LastOrDefault();
+            if (_callbackController == null) Debug.Log("Null Callback Controller");
+            var lineData = _callbackController.GetField<IReadonlyBeatmapData>("_beatmapData").beatmapLinesData;
             float firstObjectTime = _songAudio.clip.length;
             float lastObjectTime = -1f;
             foreach(var line in lineData)
@@ -175,7 +176,7 @@ namespace IntroSkip
         public IEnumerator OneShotRumbleCoroutine(VRController controller, float duration, float impulseStrength, float intervalTime = 0f)
         {
             IVRPlatformHelper vr = Resources.FindObjectsOfTypeAll<HapticFeedbackController>().FirstOrDefault()?.GetField<IVRPlatformHelper>("_vrPlatformHelper");
-
+            if (vr == null) yield break;
             yield return new WaitForSeconds(intervalTime);
             vr.TriggerHapticPulse(controller.node, 0.1f, impulseStrength, impulseStrength);
             
