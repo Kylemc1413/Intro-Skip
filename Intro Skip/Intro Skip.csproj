@@ -131,7 +131,6 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <Compile Include="ReflectionUtil.cs" />
     <Compile Include="SkipBehavior.cs" />
     <Compile Include="UI\ModifierUI.cs" />
   </ItemGroup>
