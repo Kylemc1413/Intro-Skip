@@ -1,18 +1,20 @@
 ﻿using IPA;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
-using BeatSaberMarkupLanguage;
-using TMPro;
+using SiraUtil.Zenject;
+using IntroSkip.Installers;
+
 namespace IntroSkip
 {
     [Plugin(RuntimeOptions.SingleStartInit)]
     public class Plugin
     {
+
+        [Init]
+        public void Init(IPA.Logging.Logger logger, Zenjector zenjector)
+        {
+            Logger.log = logger;
+            zenjector.OnGame<IntroSkipGameInstaller>();
+        }
 
         [OnStart]
         public void OnApplicationStart()
@@ -23,11 +25,6 @@ namespace IntroSkip
 
         }
 
-        [Init]
-        public void Init(IPA.Logging.Logger logger)
-        {
-            Logger.log = logger;
-        }
         private void BSEvents_gameSceneLoaded()
         {
             Config.Read();
@@ -40,7 +37,5 @@ namespace IntroSkip
         {
 
         }
-
-    
     }
 }
