@@ -157,12 +157,5 @@ namespace IntroSkip
             }
         }
 
-        public IEnumerator OneShotRumbleCoroutine(VRController controller, float duration, float impulseStrength, float intervalTime = 0f)
-        {
-            IVRPlatformHelper vr = Resources.FindObjectsOfTypeAll<HapticFeedbackController>().FirstOrDefault()?.GetField<IVRPlatformHelper>("_vrPlatformHelper");
-
-            yield return new WaitForSeconds(intervalTime);
-            vr.TriggerHapticPulse(controller.node, 0.1f, impulseStrength, impulseStrength);
-        }
     }
 }
