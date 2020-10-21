@@ -1,51 +1,43 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
+﻿using TMPro;
+using Zenject;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
+using IPA.Utilities;
+using System.Collections;
 using BeatSaberMarkupLanguage;
-using TMPro;
+
 namespace IntroSkip
 {
     public class SkipBehavior : MonoBehaviour
     {
         private bool _init = false;
-        private TextMeshProUGUI _skipPrompt;
-        private BeatmapObjectCallbackController _callbackController;
         private AudioSource _songAudio;
-        private VRController _leftController = null;
-        private VRController _rightController = null;
+        private TextMeshProUGUI _skipPrompt;
+        private IVRPlatformHelper _vrPlatformHelper;
+        private IReadonlyBeatmapData _readonlyBeatmapData;
+        private AudioTimeSyncController _audioTimeSyncController;
+        private VRControllersInputManager _vrControllersInputManager;
 
-        
         private bool _skippableOutro = false;
         private bool _skippableIntro = false;
         private float _introSkipTime = -1f;
         private float _outroSkipTime = -1f;
         private float _lastObjectSkipTime = -1f;
-        public void Awake()
-        {
-            if (!(Config.AllowIntroSkip || Config.AllowOutroSkip)) return;
-            bool practice = BS_Utils.Plugin.LevelData.GameplayCoreSceneSetupData.practiceSettings != null;
-            if(practice || BS_Utils.Gameplay.Gamemode.IsIsolatedLevel) return;
-            if (BS_Utils.Plugin.LevelData.Mode == BS_Utils.Gameplay.Mode.Multiplayer) return;
 
+        [Inject]
+        public void Construct(IVRPlatformHelper vrPlatformHelper, IReadonlyBeatmapData readonlyBeatmapData, AudioTimeSyncController audioTimeSyncController, VRControllersInputManager vrControllersInputManager)
+        {
+            _vrPlatformHelper = vrPlatformHelper;
+            _readonlyBeatmapData = readonlyBeatmapData;
+            _audioTimeSyncController = audioTimeSyncController;
+            _vrControllersInputManager = vrControllersInputManager;
+        }
+
+        public void Start()
+        {
             CreatePrompt();
-            var controllers = Resources.FindObjectsOfTypeAll<VRController>();
-            foreach (VRController controller in controllers)
-            {
-                if (_leftController == null && controller.node == UnityEngine.XR.XRNode.LeftHand)
-                    _leftController = controller;
-                if (_rightController == null && controller.node == UnityEngine.XR.XRNode.RightHand)
-                    _rightController = controller;
-            }
-            var audioTimeSync = Resources.FindObjectsOfTypeAll<AudioTimeSyncController>().LastOrDefault();
-            if (audioTimeSync != null)
-            {
-                _songAudio = audioTimeSync.GetField<AudioSource>("_audioSource");
-            }
-            StartCoroutine(ReadMap());
+            _songAudio = _audioTimeSyncController.GetField<AudioSource, AudioTimeSyncController>("_audioSource");
+            ReadMap();
         }
 
         public void ReInit()
@@ -53,14 +45,12 @@ namespace IntroSkip
             _init = false;
             _skippableIntro = false;
             _skippableOutro = false;
-            StartCoroutine(ReadMap());
+            ReadMap();
         }
-        public IEnumerator ReadMap()
+
+        public void ReadMap()
         {
-            yield return new WaitForSeconds(0.1f);
-            _callbackController = Resources.FindObjectsOfTypeAll<BeatmapObjectCallbackController>().LastOrDefault();
-            if (_callbackController == null) Debug.Log("Null Callback Controller");
-            var lineData = _callbackController.GetField<IReadonlyBeatmapData>("_beatmapData").beatmapLinesData;
+            var lineData = _readonlyBeatmapData.beatmapLinesData;
             float firstObjectTime = _songAudio.clip.length;
             float lastObjectTime = -1f;
             foreach(var line in lineData)
@@ -93,7 +83,6 @@ namespace IntroSkip
                 _skippableIntro = Config.AllowIntroSkip;
                 _introSkipTime = firstObjectTime - 2f;
             }
-
             if ((_songAudio.clip.length - lastObjectTime) >= 5f)
             {
                 _skippableOutro = Config.AllowOutroSkip;
@@ -105,7 +94,6 @@ namespace IntroSkip
             Logger.log.Debug($"First Object Time: {firstObjectTime} | Last Object Time: {lastObjectTime}");
             Logger.log.Debug($"Intro Skip Time: {_introSkipTime} | Outro Skip Time: {_outroSkipTime}");
         }
-
 
         private void CreatePrompt()
         {
@@ -127,6 +115,7 @@ namespace IntroSkip
             _canvas.enabled = true;
             _skipPrompt.gameObject.SetActive(false);
         }
+
         public void Update()
         {
             if (!_init || _songAudio == null) return;
@@ -139,6 +128,7 @@ namespace IntroSkip
             float time = _songAudio.time;
             bool introPhase = (time < _introSkipTime) && _skippableIntro;
             bool outroPhase = (time > _lastObjectSkipTime && time < _outroSkipTime) && _skippableOutro;
+
             if (introPhase || outroPhase)
             {
                 if (!_skipPrompt.gameObject.activeSelf)
@@ -150,36 +140,29 @@ namespace IntroSkip
                     _skipPrompt.gameObject.SetActive(false);
                 return;
             }
-            if (_leftController.triggerValue >= .8 || _rightController.triggerValue >= .8 || Input.GetKey(KeyCode.I))
+            if (_vrControllersInputManager.TriggerValue(UnityEngine.XR.XRNode.LeftHand) >= .8 || _vrControllersInputManager.TriggerValue(UnityEngine.XR.XRNode.RightHand) >= .8 || Input.GetKey(KeyCode.I))
             {
-               StartCoroutine(OneShotRumbleCoroutine(_leftController, 0.2f, 1));
-               StartCoroutine(OneShotRumbleCoroutine(_rightController, 0.2f, 1));
+                _vrPlatformHelper.TriggerHapticPulse(UnityEngine.XR.XRNode.LeftHand, 0.1f, 0.2f, 1);
+                _vrPlatformHelper.TriggerHapticPulse(UnityEngine.XR.XRNode.RightHand, 0.1f, 0.2f, 1);
                 if (introPhase)
                 {
                     _songAudio.time = _introSkipTime;
                     _skippableIntro = false;
                 }
-
                 else if (outroPhase)
                 {
                     _songAudio.time = _outroSkipTime;
                     _skippableOutro = false;
                 }
-
-
             }
-
-
         }
-
 
         public IEnumerator OneShotRumbleCoroutine(VRController controller, float duration, float impulseStrength, float intervalTime = 0f)
         {
             IVRPlatformHelper vr = Resources.FindObjectsOfTypeAll<HapticFeedbackController>().FirstOrDefault()?.GetField<IVRPlatformHelper>("_vrPlatformHelper");
-            if (vr == null) yield break;
+
             yield return new WaitForSeconds(intervalTime);
             vr.TriggerHapticPulse(controller.node, 0.1f, impulseStrength, impulseStrength);
-            
         }
     }
 }
