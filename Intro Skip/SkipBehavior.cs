@@ -14,7 +14,7 @@ namespace IntroSkip
         private AudioSource _songAudio;
         private TextMeshProUGUI _skipPrompt;
         private IVRPlatformHelper _vrPlatformHelper;
-        private IReadonlyBeatmapData _readonlyBeatmapData;
+        private BeatmapObjectCallbackController _callbackController;
         private AudioTimeSyncController _audioTimeSyncController;
         private VRControllersInputManager _vrControllersInputManager;
 
@@ -25,10 +25,10 @@ namespace IntroSkip
         private float _lastObjectSkipTime = -1f;
 
         [Inject]
-        public void Construct(IVRPlatformHelper vrPlatformHelper, IReadonlyBeatmapData readonlyBeatmapData, AudioTimeSyncController audioTimeSyncController, VRControllersInputManager vrControllersInputManager)
+        public void Construct(IVRPlatformHelper vrPlatformHelper, BeatmapObjectCallbackController callbackController, AudioTimeSyncController audioTimeSyncController, VRControllersInputManager vrControllersInputManager)
         {
             _vrPlatformHelper = vrPlatformHelper;
-            _readonlyBeatmapData = readonlyBeatmapData;
+            _callbackController = callbackController;
             _audioTimeSyncController = audioTimeSyncController;
             _vrControllersInputManager = vrControllersInputManager;
         }
@@ -45,12 +45,15 @@ namespace IntroSkip
             _init = false;
             _skippableIntro = false;
             _skippableOutro = false;
+            _introSkipTime = -1;
+            _outroSkipTime = -1;
+            _lastObjectSkipTime = -1;
             ReadMap();
         }
 
         public void ReadMap()
         {
-            var lineData = _readonlyBeatmapData.beatmapLinesData;
+            var lineData = _callbackController.GetField<IReadonlyBeatmapData, BeatmapObjectCallbackController>("_beatmapData").beatmapLinesData;
             float firstObjectTime = _songAudio.clip.length;
             float lastObjectTime = -1f;
             foreach(var line in lineData)
