@@ -53,6 +53,7 @@ namespace IntroSkip
 
         public void ReadMap()
         {
+         //   yield return new WaitForSeconds(1f);
             var lineData = _callbackController.GetField<IReadonlyBeatmapData, BeatmapObjectCallbackController>("_beatmapData").beatmapLinesData;
             float firstObjectTime = _songAudio.clip.length;
             float lastObjectTime = -1f;
@@ -143,8 +144,9 @@ namespace IntroSkip
                     _skipPrompt.gameObject.SetActive(false);
                 return;
             }
-            if (_vrControllersInputManager.TriggerValue(UnityEngine.XR.XRNode.LeftHand) >= .8 || _vrControllersInputManager.TriggerValue(UnityEngine.XR.XRNode.RightHand) >= .8 || Input.GetKey(KeyCode.I))
+            if ( _audioTimeSyncController.state == AudioTimeSyncController.State.Playing && (_vrControllersInputManager.TriggerValue(UnityEngine.XR.XRNode.LeftHand) >= .8 || _vrControllersInputManager.TriggerValue(UnityEngine.XR.XRNode.RightHand) >= .8 || Input.GetKey(KeyCode.I)))
             {
+                Logger.log.Debug("Skip Triggered At:" + time);
                 _vrPlatformHelper.TriggerHapticPulse(UnityEngine.XR.XRNode.LeftHand, 0.1f, 0.2f, 1);
                 _vrPlatformHelper.TriggerHapticPulse(UnityEngine.XR.XRNode.RightHand, 0.1f, 0.2f, 1);
                 if (introPhase)
